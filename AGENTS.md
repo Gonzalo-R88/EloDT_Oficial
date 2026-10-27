@@ -1,0 +1,58 @@
+# AGENTS.md
+
+AEP (Analítica de Entrenadores & Performance): ELO ratings for football managers (DTs) built from Transfermarkt data. Python 3.12, SQLAlchemy 2.0, PostgreSQL, BeautifulSoup. Domain names are Spanish (`dt_id`, `partidos_dt`, `goles_local`, ...) — keep them.
+
+> **Estado entre sesiones:** leer `ESTADO.md` (handoff con lo último hecho y el próximo paso).
+
+## Commands
+
+- Install: `pip install -r requirements.txt`
+- Migrations: `python migrate.py [--create-db]` — applies `migrations/*.sql` in name order (idempotent). `--create-db` connects to the `postgres` maintenance DB first.
+- Respaldo de la DB: `bash scripts/backup_db.sh [--verify]` — dump en formato custom a `data/backups/aep_YYYYmmdd_HHMMSS.dump`; `--verify` lo restaura en una base temporal y compara `partidos_dt`. Correrlo antes de migraciones, `recompute` o cargas masivas.
+- Git: `bash scripts/gitw.sh <comando>` — usa el git de Windows (`C:\Program Files\Git\cmd\git.exe`). El git de Linux no puede escribir `.git` en `/mnt/f` (drvfs sin soporte de `chmod`). El repo tiene `core.autocrlf=false`.
+- Validate: `python scripts/validate_elo.py [--min-partidos N] [--top N]` — zero-sum, mass conservation, coverage and rankings.
+- Power Ranking: `python scripts/power_ranking.py [--dias N] [--top N] [--competition AR1N] [--desde YYYY-MM-DD --hasta YYYY-MM-DD] [--output PNG]` — weekly ELO risers/fallers, renders a PNG for X under `$DATA_DIR/output/`.
+- Watchdog: `bash scripts/watchdog_backfill.sh` — relaunches `tmux aep-resto` if missing. Triggered by Windows Task Scheduler (`AEP-Watchdog-Logon`, `AEP-Watchdog-2h` via `C:\Users\Gonzalo\aep_watchdog_start.bat`) so the backfill survives Windows reboots (which kill WSL). Requires the project NOT to be on Google Drive (Task Scheduler can't see `D:`); it lives on `F:\ProyectoDT`. Currently DISABLED (scraping total completed 2026-10-27); re-enable with `schtasks /Change /TN "AEP-Watchdog-2h" /ENABLE`. Logs: `$DATA_DIR/logs/watchdog.log` and `C:\Users\Gonzalo\aep_watchdog_windows.log`.
+- Duelo de Pizarras: `python scripts/duelo_pizarras.py --dt-a <id|nombre> --dt-b <id|nombre> [--forma N] [--output PNG]` — head-to-head infographic for two coaches.
+- Plan de scraping total: `python scripts/plan_scraping.py [--workers N] [--hours-per-day H] [--from 2000 --to 2026] [--csv FILE]` — estima requests/tiempo y arma el plan diario por ligas. Ver `PLAN_SCRAPING_TOTAL.md`.
+- Verificar competencias: `python scripts/verify_competitions.py [--season 2024] [--codes GB1,ES1]` — smoke test de los códigos del catálogo contra Transfermarkt.
+- Tests: `python3 -m pytest` — run from the repo root. Tests import top-level modules (`config`, `models`, `services`, `elo`, `ranking`, `duel`, `scraping`) and use in-memory SQLite, so **no PostgreSQL is needed**.
+- Single test: `python3 -m pytest tests/test_elo.py::test_elo_delta_is_zero_sum`
+- Ingest CLI: `python3 scraper_transfermarkt.py <command>`
+  - `list` — registered competitions
+  - `scrape --competition AR1N --season 2024 [--refresh] [--limit N]`
+  - `load --competition AR1N --season 2024` (requires a prior scrape)
+  - `ingest` — scrape + load
+  - `recompute` — replay all stored matches and rebuild ELO
+  - `coverage --competition AR1N --season 2024`
+  - Most commands also accept `--all-competitions`, `--leagues A,B,C` and `--from YYYY --to YYYY`.
+
+## Architecture
+
+- `elo.py` — pure ELO math, no DB. `ΔELO = K·C·G·(R−E)`, home advantage +30, initial 1000, zero-sum exchange.
+- `services.py` — DB orchestration. `process_match_elo` is idempotent and returns `"procesado"` / `"duplicado"`; `recompute_all_elo` replays history deterministically from 1000.
+- `ranking.py` — data layer for the "Power Ranking de la Fecha": aggregates ELO deltas per coach over a date window (default last 7 days). No matplotlib, unit-testable.
+- `duel.py` — data layer for the "Duelo de Pizarras": per-coach record (PJ/G-E-P/goals/form) plus head-to-head between two coaches. `resolve_coach` accepts a `dt_id` or a name substring. No matplotlib, unit-testable.
+- `visualization.py` — matplotlib rendering (Agg backend) of both infographics into PNGs ready for X. Brand palette is violet/lilac + sky blue + white. Fonts (Poppins body, Anton display) load from `assets/fonts/` with a DejaVu fallback. Kept separate from the data layers so they stay testable without plotting deps.
+- `scripts/power_ranking.py` / `scripts/duelo_pizarras.py` — CLIs joining DB + data layer + `visualization.py`.
+- `models.py` — SQLAlchemy ORM, source of truth for the app schema.
+- `config.py` — loads `.env` and exposes a frozen `settings` singleton **at import time**.
+- `db.py` — engine/session factory (Postgres URL).
+- `DT.py` — canonical facade re-exporting everything, plus Spanish aliases (`procesar_partido_elo`, ...). `Proyecto DT.py` is a legacy shim; never add logic there.
+- `scraping/` — `client.py` (HTTP retries/backoff), `parser.py` (HTML → DTO), `dto.py`, `storage.py` (disk cache), `pipeline.py` (scrape/normalize/persist), `competitions.py` (registry), `waf.py` (resolver del challenge AWS WAF con Chromium headless), `leagues_catalog.py` (50-comp universe for the total backfill plan; verification metadata only).
+
+## Gotchas
+
+- Migrations are plain SQL in `migrations/`; apply manually in order `000 → 001 → 002` (no Alembic). `Base.metadata.create_all` does **not** create the DB-side generated columns (`delta_elo_local/visita`) or the columns added by 002 — the SQL files are the DB source of truth.
+- `.env` is gitignored but exists locally. Importing `db` builds a Postgres engine lazily (no connection until used), which is why unit tests pass without a database.
+- Scrape cache lives under `DATA_DIR` (`config.py`; default `./data`, i.e. `F:\ProyectoDT\data` — the whole project was moved off Google Drive to `F:\ProyectoDT` because Drive throttled on ~260k JSON files): `$DATA_DIR/raw/{code}/{season}/fixtures.json` and `matches/{id}.json`. `load` fails without cached fixtures; `--limit` is the smoke-test flag. Writes are atomic (temp file + `os.replace`) so an interrupted scrape resumes cleanly; the CLI also appends to `$DATA_DIR/logs/ingest.log`.
+- Adding a competition = one entry in `COMPETITIONS` (`scraping/competitions.py`). `path` is `wettbewerb` for leagues, `pokalwettbewerb` for cups. `saison_offset` converts the real season year to Transfermarkt's `saison_id` (South American calendar-year seasons are grouped under the previous year, so offset is `1`: `--season 2024` → `saison_id=2023`). Cache dirs are keyed by the real season year. **`COMPETITIONS` auto-extends from `scraping/leagues_catalog.py`** (51-comp universe); the 7 hand-written entries win. Calendar-year leagues incl. SE1/NO1/JAP1 also use offset `1`.
+- When Transfermarkt lacks a `saison_id`, the schedule page silently returns the **current** season. `scraping/pipeline.py::season_is_aligned` discards such fixtures (they'd be cached under the wrong season). `scripts/verify_competitions.py` flags them as `FUERA` (checks `min_year == season`).
+- The schedule URL must carry `?saison_id=...&spieltagVon=1&spieltagBis=99`: the most recent season otherwise renders only the current matchday (14 rows instead of the full fixture).
+- After changing the ELO formula or a competition coefficient, run `recompute` instead of re-scraping.
+- `factor_k ∈ {20,30,40}` and `impacto_banco_* ∈ {-1,0,1}` are enforced in both the ORM and the DB.
+- Transfermarkt HTML is fragile: the main score must be read from `div.sb-endstand` (`span.matchresult` belongs to other fixtures), and `parse_schedule` forward-fills a date across grouped rows that omit it.
+- **CloudFront WAF / anti-bot:** hay dos respuestas distintas. Un **403** de CloudFront (cuerpo corto `Request blocked.`) es bloqueo duro a nivel IP/ASN: la IP ARSAT de casa quedó baneada por un backfill a ~3.200 req/h (~0,9 req/s) durante días, y el navegador tampoco lo pasa. Una **202 con `awswaf.com/challenge.js`** es el *challenge* JS de AWS WAF que reciben las IPs de datacenter (VPN), resoluble sólo ejecutando JavaScript. Por eso el scraping va **con VPN + `WafChallengeSolver`** (`scraping/waf.py`, Playwright/Chromium headless): resuelve el reto, extrae `aws-waf-token` y lo inyecta en la sesión `curl_cffi`. El cliente usa `curl_cffi` impersonando Chrome + headers/`Referer` + `warm_up()`. `scripts/backfill_resto.sh` limita a ~14 req/min (3 workers, delay 8-18 s). No subir el ritmo; ante 403 espera `TM_BLOCKED_WAIT` y reintenta. Requiere `pip install playwright && playwright install chromium`; se desactiva con `TM_WAF_SOLVER=false`. `pytest.ini` fija `testpaths=tests` (el `pytest` pelado escanea `data/` y cuelga).
+- **Versiones de Postgres:** el servidor es **18.x** y corre en Windows (`DB_HOST=winhost`), pero el `pg_dump` de WSL es 16 y no puede dumpear un servidor más nuevo. `scripts/backup_db.sh` detecta esto y usa el `pg_dump.exe` de `C:\Program Files\PostgreSQL\18\bin`. Ese ejecutable corre en Windows y no entiende rutas `/mnt/...`: se le pasan con `wslpath -w` y se conecta a `127.0.0.1`. Además WSL **no** propaga variables de entorno a los `.exe`: hay que usar `WSLENV=PGPASSWORD` (si no, `pg_dump.exe` se queda esperando la contraseña).
+- El proyecto vive en `F:` montado sin metadata: `chmod` falla, así que los scripts se invocan con `bash script.sh` (no `./script.sh`).
+- Docstrings/comments are written in Spanish; preserve that convention.
