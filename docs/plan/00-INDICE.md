@@ -24,6 +24,10 @@ Este índice es el punto de entrada. El plan completo y razonado está en `aep-e
 
 3. Revisá el resultado y recién entonces pedí la siguiente tarea.
 
+Los pendientes del usuario (acciones y decisiones) se acumulan en **`docs/plan/PENDIENTES.md`**.
+Leerlo antes de empezar cada sesión y actualizarlo al cerrar la tarea (agregar lo nuevo que
+quede pendiente, tachar lo hecho).
+
 ## Reglas generales (valen para TODAS las tareas)
 
 - Respetar las convenciones del repo (`AGENTS.md`): nombres de dominio en español, docstrings y comentarios en español, Python 3.12, SQLAlchemy 2.0.
@@ -43,7 +47,7 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | ✔ | ID | Título | Archivo de fase | Tipo | Depende de |
 |---|---|---|---|---|---|
 | [x] | T0.1 | Respaldo y git | `01-fase0-datos.md` | ⚙️ 👤 | — |
-| [ ] | T0.2 | Auditoría de datos y cobertura | `01-fase0-datos.md` | ⚙️ | T0.1 |
+| [x] | T0.2 | Auditoría de datos y cobertura | `01-fase0-datos.md` | ⚙️ | T0.1 |
 | [ ] | T0.3 | Bug de fechas del fixture | `01-fase0-datos.md` | 🔒 | T0.2 |
 | [ ] | T0.4 | Recuperar Argentina | `01-fase0-datos.md` | 🔒 👤 | T0.1, T0.2 |
 | [ ] | T0.6 | País real de los clubes | `01-fase0-datos.md` | ⚙️ | T0.4 |

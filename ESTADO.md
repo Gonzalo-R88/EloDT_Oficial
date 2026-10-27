@@ -5,7 +5,8 @@
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.
 > Se ejecuta **una tarea por sesión**, marcando la casilla en el índice. La sesión
-> 2026-10-27 completó **T0.1**; sigue **T0.2** (auditoría de cobertura, sin VPN).
+> 2026-10-27 completó **T0.1** y **T0.2**; sigue **T0.3** (bug de fechas, requiere VPN).
+> Los pendientes del usuario viven en `docs/plan/PENDIENTES.md`.
 
 > **SCRAPING TOTAL COMPLETADO (2026-10-27).** Las 51 competencias quedaron
 > backfilleadas 2000-2026 y cargadas a la DB (`validate_elo.py`):
@@ -82,7 +83,7 @@
     en tmux. Script versionado en `scripts/backfill_resto.sh`.
   - TM sólo tiene las ligas argentinas/Conmebol desde ~2014-2015.
 
-## Cambios de código de esta sesión (2026-10-27 — plan nuevo, T0.1)
+## Cambios de código de esta sesión (2026-10-27 — plan nuevo, T0.1 y T0.2)
 
 1. `docs/plan/` (**nuevo**) — plan de trabajo dividido en fases y tareas
    (`00-INDICE.md`, `01-fase0-datos.md` … `07-fase5-mejoras.md`) más la
@@ -101,10 +102,30 @@
    `.git`), así que se usa el git de Windows a través de este wrapper. El repo
    quedó con `core.autocrlf=false`.
 4. `.env.example` (**nuevo**) — claves de `.env` sin secretos.
-5. `AGENTS.md` — comandos de respaldo y git + gotchas de versiones de Postgres,
-   `WSLENV` y `chmod` en `/mnt/f`.
+5. `AGENTS.md` — comandos de respaldo, git y auditoría + gotchas de versiones de
+   Postgres, `WSLENV` y `chmod` en `/mnt/f`.
+6. `auditoria.py` (**nuevo**) — capa de datos de la auditoría (misma separación que
+   `ranking.py`/`duel.py`): cobertura por competencia y **año calendario**, huecos
+   (`ratio = 0`), conflictos de fecha por DT-día, últimos partidos y estimación de
+   reportes sin DT por quinquenio. Sin escritura ni dibujo.
+7. `scripts/audit_data.py` (**nuevo**) — CLI: escribe `data/audit/cobertura.json`
+   (`{codigo: {anio: {fixtures, cargados, ratio}}}`), `conflictos_fecha.json` y
+   `auditoria_<fecha>.md`. Sin `--muestra` tarda ~7-16 s.
+8. `tests/test_audit_data.py` (**nuevo**, 13 tests) — **49 tests en total, verdes.**
+9. `docs/plan/PENDIENTES.md` (**nuevo**) — registro de lo que depende del usuario
+   (acciones y decisiones), con cuándo se pide cada cosa.
 
-**Pendiente del usuario:** rotar `DB_PASS` (quedó expuesto en el log de una sesión).
+**Resultado de la auditoría (2026-10-27, `--muestra 3000`):**
+- 261.194 fixtures cacheados (26 sin fecha usable) vs **191.931 cargados** → hay
+  191.931 filas en la base: todas vienen del caché. Cobertura global 73,5 %.
+- **152 conflictos de fecha** (unchanged, se atacan en T0.3).
+- **Argentina:** `AR1N` con 2017-2020 y 2025-26 en **0 %**; `ARG2` con 2017-2020 en 0 %;
+  `CDLP` con 2025-26 en 0 %. `ARG2` 2015 (65 %) y 2016 (85 %) incompletos.
+  `AR1N` no tiene partidos desde 2024-12-17 (679 días).
+- 24 competencias con algún año en hueco. Reportes sin algún DT por quinquenio:
+  2000-04 65 %, 2005-09 67 %, 2010-14 28 %, 2015-19 8 %, 2020-24 0,6 %, 2025+ 0 %.
+
+**Pendiente del usuario** (ver `docs/plan/PENDIENTES.md`): rotar `DB_PASS`.
 
 ## Cambios de código de la sesión anterior (2026-09-21)
 
@@ -239,11 +260,11 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-1. **T0.2 — Auditoría de datos y cobertura** (`scripts/audit_data.py`): no
-   necesita VPN; genera `data/audit/cobertura.json`, la lista de conflictos de
-   fecha (152 casos) y el informe Markdown.
-2. **T0.3 — Bug de fechas del fixture** (requiere VPN, pocas requests).
-3. **T0.4 — Recuperar Argentina** (requiere VPN; parada humana al terminar).
+1. **T0.3 — Bug de fechas del fixture** (requiere VPN, pocas requests). Punto de
+   partida: el caso de Alianza Lima del 2006-07-30 en `data/raw/TDeC/2006/fixtures.json`
+   y la lista completa en `data/audit/conflictos_fecha.json` (152 casos).
+2. **T0.4 — Recuperar Argentina** (requiere VPN; parada humana al terminar). La
+   auditoría ya confirma los huecos: `AR1N` 2017-2020 y 2025-26 en 0 %.
 
 ## Comandos útiles para retomar
 
