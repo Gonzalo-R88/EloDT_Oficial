@@ -75,7 +75,6 @@ if command -v pg_dump >/dev/null 2>&1; then
 fi
 
 # 2) pg_dump.exe de Windows (misma máquina que el servidor), si hace falta.
-WIN_ENV=()
 WIN_PATH_PREFIX=""
 if [[ -z "$DUMP_BIN" ]]; then
     while IFS= read -r candidato; do
