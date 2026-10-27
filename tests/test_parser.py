@@ -1,4 +1,4 @@
-from scraping.parser import parse_match_report, parse_schedule
+from scraping.parser import parse_match_report, parse_report_date, parse_schedule
 from scraping.pipeline import infer_factor_k
 from scraping.competitions import get_competition
 
@@ -30,6 +30,13 @@ SCHEDULE_HTML = """
 
 MATCH_HTML = """
 <html><body>
+<div class="sb-spieldaten">
+  <p class="sb-datum hide-for-small">
+    <a href="/jumplist/spieltag/wettbewerb/AR1N/saison_id/2023/spieltag/1">1. Matchday</a>
+    |
+    <a href="/aktuell/waspassiertheute/aktuell/new/datum/2024-05-11">Sat, 11/05/24</a>
+  </p>
+</div>
 <div class="sb-endstand">2:1<div class="sb-halbzeit">(<span>1:</span>0)</div></div>
 <table>
 <tr class="bench-table__tr">
@@ -126,6 +133,38 @@ def test_parse_match_report_extracts_coaches_and_bench_metrics():
     # Visita: primer cambio en 60 con 1:1 -> terminó 1:2 => -1
     assert report.marcador_pre_cambios_visita == "1:1"
     assert report.impacto_banco_visita == -1
+
+
+def test_parse_match_report_extrae_la_fecha_del_reporte():
+    """La fecha del reporte es la única confiable: el fixture la hereda de la fila previa."""
+    report = parse_match_report(MATCH_HTML, 4283434)
+    assert report.fecha == "2024-05-11"
+
+
+def test_parse_report_date_usa_el_link_datum():
+    html = """
+    <html><body>
+      <p class="sb-datum hide-for-small">
+        <a href="/jumplist/spieltag/wettbewerb/TDeC/saison_id/2005/spieltag/4">4. Matchday</a>
+        |
+        <a href="/aktuell/waspassiertheute/aktuell/new/datum/2006-08-05">Sat, 05/08/06</a>
+      </p>
+    </body></html>
+    """
+    assert parse_report_date(html) == "2006-08-05"
+
+
+def test_parse_report_date_cae_al_texto_si_no_hay_link():
+    html = """
+    <html><body>
+      <p class="sb-datum">6. Matchday | Mon, 16/05/05 | 7:00 PM</p>
+    </body></html>
+    """
+    assert parse_report_date(html) == "2005-05-16"
+
+
+def test_parse_report_date_sin_fecha_devuelve_none():
+    assert parse_report_date("<html><body><p>sin datos</p></body></html>") is None
 
 
 def test_infer_factor_k_by_round():

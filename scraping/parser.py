@@ -119,6 +119,38 @@ def parse_schedule(html: str, competition_code: str, season: int) -> list[Fixtur
     return fixtures
 
 
+def _parse_report_date(soup: BeautifulSoup) -> Optional[str]:
+    """Fecha ISO del partido según el encabezado del reporte (`p.sb-datum`).
+
+    El encabezado trae dos enlaces: el de la jornada (`/jumplist/...`) y el de la
+    fecha (`/datum/AAAA-MM-DD`), que es el dato exacto. Si no hay enlace se cae al
+    texto (`4. Matchday | Sat, 05/08/06`).
+    """
+    bloque = soup.select_one("p.sb-datum")
+    if bloque is not None:
+        enlace = bloque.select_one("a[href*='/datum/']")
+        if enlace is not None:
+            coincidencia = _DATE_RE.search(enlace.get("href", ""))
+            if coincidencia:
+                return coincidencia.group(1)
+        texto = _text(bloque.get_text(" "))
+        coincidencia_texto = _TEXT_DATE_RE.search(texto)
+        if coincidencia_texto:
+            dia, mes, anio = coincidencia_texto.groups()
+            if len(anio) == 2:
+                anio = f"20{anio}"
+            return f"{anio}-{int(mes):02d}-{int(dia):02d}"
+
+    # Último recurso: el primer link `/datum/` del documento (suele haber uno solo).
+    coincidencia = _DATE_RE.search(str(soup))
+    return coincidencia.group(1) if coincidencia else None
+
+
+def parse_report_date(html: str) -> Optional[str]:
+    """Fecha ISO del partido a partir del HTML del reporte (o None)."""
+    return _parse_report_date(BeautifulSoup(html, "lxml"))
+
+
 def _parse_coaches(soup: BeautifulSoup) -> tuple[Optional[int], Optional[str], Optional[int], Optional[str]]:
     """Extrae los DTs local y visitante del reporte (orden: home, away)."""
     links = soup.select("tr.bench-table__tr a[href*='/profil/trainer/']")
@@ -224,6 +256,7 @@ def parse_match_report(html: str, match_id: int) -> MatchReport:
             score_found = True
 
     home_id, home_name, away_id, away_name = _parse_coaches(soup)
+    fecha = _parse_report_date(soup)
     events = _parse_events(soup)
 
     # Fallback: si no hubo marcador en el encabezado, reconstruirlo desde eventos.
@@ -243,6 +276,7 @@ def parse_match_report(html: str, match_id: int) -> MatchReport:
         home_coach_name=home_name,
         away_coach_tm_id=away_id,
         away_coach_name=away_name,
+        fecha=fecha,
         events=events,
         marcador_pre_cambios_local=marcador_local,
         marcador_pre_cambios_visita=marcador_visita,

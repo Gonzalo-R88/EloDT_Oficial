@@ -68,6 +68,10 @@ opciones, escribila debajo de la línea para que quede el registro.
   - Transfermarkt no tiene esas ligas. El estudio dirá si alguna fuente gratuita sirve y
     cuánto trabajo implica. Puede quedar como "histórico incompleto" sin costo.
 
+- [ ] **Qué hacer con los 25 partidos donde Transfermarkt asigna el mismo DT a dos equipos el mismo día** (al cerrar **T0.3** quedaron identificados y documentados en `docs/CONFLICTOS_FECHA.md`).
+  - Qué pasa: no es un problema de fechas (la fecha está confirmada). Son errores de Transfermarkt: 20 casos del mismo DT en dos clubes de la misma jornada, 3 en ligas distintas, 1 club con dos partidos el mismo día y 1 partido cargado dos veces en distintas competencias.
+  - Opciones: **dejarlos como están** (es lo que hice; el impacto en el ELO es mínimo) o descartar esos partidos de la base en una limpieza posterior.
+
 - [ ] **Diseño del primer Top 10** — en **T3.3**.
   - Qué vas a ver: el primer PNG con datos reales de Argentina. Aprobás o pedís cambios
     (colores, tipografía, qué datos se muestran).
@@ -87,3 +91,4 @@ opciones, escribila debajo de la línea para que quede el registro.
 - [x] Un post por semana, los lunes; n8n + Telegram.
 - [x] Uso personal (marca personal), sin monetizar.
 - [x] Arreglar los datos históricos en lugar de recortar el modelo.
+- [x] T0.3: corregir fechas de los **bloques completos** (669 partidos re-descargados), no solo los conflictivos.

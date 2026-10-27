@@ -43,6 +43,10 @@ class MatchReport:
     home_coach_name: Optional[str]
     away_coach_tm_id: Optional[int]
     away_coach_name: Optional[str]
+    # Fecha real del partido según el reporte (ISO). La del fixture no es confiable:
+    # Transfermarkt imprime la fecha una sola vez por bloque y las filas siguientes
+    # quedan vacías. En reportes cacheados antes de este campo queda en None.
+    fecha: Optional[str] = None
     events: list[TimelineEvent] = field(default_factory=list)
     marcador_pre_cambios_local: Optional[str] = None
     marcador_pre_cambios_visita: Optional[str] = None

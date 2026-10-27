@@ -155,7 +155,9 @@ def load_normalized(
             NormalizedMatch(
                 tm_match_id=fixture.match_id,
                 competition_code=config.code,
-                date=fixture.date or "",
+                # La fecha del fixture no es confiable (TM la imprime una vez por
+                # bloque y las filas siguientes la heredan); la del reporte sí.
+                date=report.fecha or fixture.date or "",
                 factor_k=infer_factor_k(config, fixture.matchday),
                 home_club_tm_id=fixture.home_club_tm_id,
                 home_club_name=fixture.home_club_name,

@@ -114,6 +114,21 @@
 8. `tests/test_audit_data.py` (**nuevo**, 13 tests) — **49 tests en total, verdes.**
 9. `docs/plan/PENDIENTES.md` (**nuevo**) — registro de lo que depende del usuario
    (acciones y decisiones), con cuándo se pide cada cosa.
+10. **T0.3 — fechas (NUEVO).** La fecha del fixture no es confiable: TM imprime la
+    fecha una sola vez por bloque y el bloque puede abarcar varias jornadas. Ahora
+    `scraping/parser.py::parse_report_date` saca la fecha exacta de la página del
+    partido (`p.sb-datum` → `/datum/AAAA-MM-DD`), queda en `MatchReport.fecha` y
+    `load_normalized` la prefiere sobre la del fixture. `scripts/fix_fechas.py`
+    (**nuevo**: `--fetch` / dry-run / `--apply`) re-descarga solo los reportes
+    necesarios y corrige `partidos_dt.fecha`. `tests/test_fix_fechas.py` (**nuevo**,
+    4 tests) y 5 tests más de parser/pipeline → **59 tests verdes**.
+    `docs/CONFLICTOS_FECHA.md` (**nuevo**) explica el defecto y los casos restantes.
+11. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+    **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
+    de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
+    de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas
+    distintas, 1 club con dos partidos el mismo día, 1 partido duplicado en dos
+    competencias). Los rankings de punta no se movieron.
 
 **Resultado de la auditoría (2026-10-27, `--muestra 3000`):**
 - 261.194 fixtures cacheados (26 sin fecha usable) vs **191.931 cargados** → hay
@@ -260,11 +275,12 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-1. **T0.3 — Bug de fechas del fixture** (requiere VPN, pocas requests). Punto de
-   partida: el caso de Alianza Lima del 2006-07-30 en `data/raw/TDeC/2006/fixtures.json`
-   y la lista completa en `data/audit/conflictos_fecha.json` (152 casos).
-2. **T0.4 — Recuperar Argentina** (requiere VPN; parada humana al terminar). La
-   auditoría ya confirma los huecos: `AR1N` 2017-2020 y 2025-26 en 0 %.
+1. **T0.4 — Recuperar Argentina** (requiere VPN; parada humana al terminar). La
+   auditoría ya confirma los huecos: `AR1N` 2017-2020 y 2025-26 en 0 %; `ARG2`
+   2017-2020 en 0 %. Punto de partida: los logs con "Fixture ... desalineado" y
+   `scraping/pipeline.py::season_is_aligned` (falso positivo posible en temporadas
+   agosto-junio).
+2. **T0.6 — País real de los clubes** y **T0.5 — Reglas de publicación** (sin VPN).
 
 ## Comandos útiles para retomar
 

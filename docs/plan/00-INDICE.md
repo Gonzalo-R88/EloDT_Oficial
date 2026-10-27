@@ -48,7 +48,7 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 |---|---|---|---|---|---|
 | [x] | T0.1 | Respaldo y git | `01-fase0-datos.md` | ⚙️ 👤 | — |
 | [x] | T0.2 | Auditoría de datos y cobertura | `01-fase0-datos.md` | ⚙️ | T0.1 |
-| [ ] | T0.3 | Bug de fechas del fixture | `01-fase0-datos.md` | 🔒 | T0.2 |
+| [x] | T0.3 | Bug de fechas del fixture | `01-fase0-datos.md` | 🔒 | T0.2 |
 | [ ] | T0.4 | Recuperar Argentina | `01-fase0-datos.md` | 🔒 👤 | T0.1, T0.2 |
 | [ ] | T0.6 | País real de los clubes | `01-fase0-datos.md` | ⚙️ | T0.4 |
 | [ ] | T0.5 | Reglas de publicación | `01-fase0-datos.md` | ⚙️ | T0.2, T0.4, T0.6 |
