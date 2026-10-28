@@ -70,9 +70,25 @@ def test_season_alignment_accepts_european_and_calendar_years():
     assert season_is_aligned([_fixture("2024-02-10"), _fixture("2024-11-30")], 2024)
 
 
+def test_season_alignment_accepts_split_season_requested_by_start_year():
+    """Temporada agosto-junio pedida por el año de arranque (caso Argentina 2017)."""
+    fixture = [_fixture("2016-08-26"), _fixture("2017-05-28")]
+    assert season_is_aligned(fixture, 2016)
+    assert season_is_aligned(fixture, 2017)
+
+
+def test_season_alignment_accepts_split_season_requested_by_end_year():
+    """Temporada agosto-junio pedida por el año en que termina (caso Europa 2024/25)."""
+    fixture = [_fixture("2024-08-11"), _fixture("2025-05-20")]
+    assert season_is_aligned(fixture, 2024)
+    assert season_is_aligned(fixture, 2025)
+
+
 def test_season_alignment_rejects_wrong_season():
     assert not season_is_aligned([_fixture("2026-02-21")], 2024)
     assert not season_is_aligned([], 2024)
+    # Pedir 2000 y recibir la temporada actual sigue siendo un error.
+    assert not season_is_aligned([_fixture("2026-08-01"), _fixture("2027-05-20")], 2000)
 
 
 def test_get_competition_is_case_insensitive():

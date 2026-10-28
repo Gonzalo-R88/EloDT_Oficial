@@ -108,13 +108,15 @@ def construir_cobertura(
     ids_en_db: set[int],
     primera_temporada: dict[str, int],
     anio_actual: int,
+    ultima_temporada: Optional[dict[str, int]] = None,
 ) -> tuple[dict[str, dict[int, CoberturaCelda]], dict[str, int]]:
     """Cuenta fixtures y cargados por competencia y año calendario.
 
     Devuelve `(cobertura, sin_fecha)`:
     - `cobertura[codigo][anio] = CoberturaCelda`, con todos los años desde la
       primera temporada de la competencia (o antes, si hay datos) hasta
-      `anio_actual`. Los años sin fixtures cacheados quedan en 0 (huecos visibles).
+      `anio_actual` (o hasta su última temporada, si la competencia terminó).
+      Los años sin fixtures cacheados quedan en 0 (huecos visibles).
     - `sin_fecha[codigo]`: fixtures cacheados sin fecha usable (no asignables a un año).
     """
     conteo: Counter[tuple[str, int]] = Counter()
@@ -134,14 +136,16 @@ def construir_cobertura(
         if actual is None or fixture.fecha.year < actual:
             anio_min[fixture.codigo] = fixture.fecha.year
 
+    cerradas = ultima_temporada or {}
     cobertura: dict[str, dict[int, CoberturaCelda]] = {}
     for codigo in sorted(set(primera_temporada) | set(anio_min)):
         inicial = primera_temporada.get(codigo, ANIO_PRIMERA_TEMPORADA_DEFAULT)
         if codigo in anio_min:
             inicial = min(inicial, anio_min[codigo])
         inicial = min(inicial, anio_actual)
+        final = min(anio_actual, cerradas.get(codigo) or anio_actual)
         por_anio: dict[int, CoberturaCelda] = {}
-        for anio in range(inicial, anio_actual + 1):
+        for anio in range(inicial, final + 1):
             por_anio[anio] = CoberturaCelda(
                 fixtures=conteo.get((codigo, anio), 0),
                 cargados=cargados.get((codigo, anio), 0),
@@ -406,10 +410,28 @@ def estimar_dt_faltante(
 # ---------------------------------------------------------------------------
 def primera_temporada_por_competencia() -> dict[str, int]:
     """Primera temporada declarada en el catálogo (no consulta Transfermarkt)."""
-    from scraping.competitions import COMPETITIONS
-    from scraping.leagues_catalog import CATALOG
-
-    primeras = {codigo: ANIO_PRIMERA_TEMPORADA_DEFAULT for codigo in COMPETITIONS}
-    for candidato in CATALOG:
+    primeras = {codigo: ANIO_PRIMERA_TEMPORADA_DEFAULT for codigo in _competencias()}
+    for candidato in _catalogo():
         primeras[candidato.code] = candidato.first_season
     return primeras
+
+
+def ultima_temporada_por_competencia() -> dict[str, int]:
+    """Última temporada de las competencias que TM ya no actualiza."""
+    return {
+        candidato.code: candidato.last_season
+        for candidato in _catalogo()
+        if candidato.last_season is not None
+    }
+
+
+def _catalogo():
+    from scraping.leagues_catalog import CATALOG
+
+    return CATALOG
+
+
+def _competencias():
+    from scraping.competitions import COMPETITIONS
+
+    return COMPETITIONS

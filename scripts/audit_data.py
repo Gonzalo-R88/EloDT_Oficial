@@ -34,6 +34,7 @@ from auditoria import (  # noqa: E402
     rangos_anios,
     resumir_competencias,
     rutas_reportes,
+    ultima_temporada_por_competencia,
     ultimos_partidos,
 )
 from config import settings  # noqa: E402
@@ -196,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         ids_en_db=ids,
         primera_temporada=primera_temporada_por_competencia(),
         anio_actual=args.hoy.year,
+        ultima_temporada=ultima_temporada_por_competencia(),
     )
     resumenes = resumir_competencias(cobertura)
 

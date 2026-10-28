@@ -123,7 +123,20 @@
     necesarios y corrige `partidos_dt.fecha`. `tests/test_fix_fechas.py` (**nuevo**,
     4 tests) y 5 tests más de parser/pipeline → **59 tests verdes**.
     `docs/CONFLICTOS_FECHA.md` (**nuevo**) explica el defecto y los casos restantes.
-11. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+11. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+    distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
+    (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
+    (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
+    Apertura) y **`ARGC`** (Torneo Clausura), dados de alta con `first_season=2025`;
+    (c) `CDLP` dejó de jugarse en 2024. Nuevo campo `LeagueCandidate.last_season`
+    (AR1N y CDLP en 2024) para no reportar huecos falsos ni pedir temporadas que
+    ya no existen. `scripts/verify_competitions.py` ganó `--no-align-check`,
+    `--saison-offset` y `--path`. `scripts/backfill_argentina.sh` (**nuevo**).
+    **Resultado:** ~3.500 requests en ~5 h → base de **195.299 partidos** y
+    **6.732 DTs** (+3.368 partidos), `validate_elo.py` en verde, conflictos de
+    fecha sin cambios (25). Cobertura argentina 2017-2020 recuperada (0,98-1,00)
+    y 2025-26 nueva (0,99-1,00). 62 tests verdes.
+12. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
     **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
     de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
     de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas
@@ -275,12 +288,14 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-1. **T0.4 — Recuperar Argentina** (requiere VPN; parada humana al terminar). La
-   auditoría ya confirma los huecos: `AR1N` 2017-2020 y 2025-26 en 0 %; `ARG2`
-   2017-2020 en 0 %. Punto de partida: los logs con "Fixture ... desalineado" y
-   `scraping/pipeline.py::season_is_aligned` (falso positivo posible en temporadas
-   agosto-junio).
-2. **T0.6 — País real de los clubes** y **T0.5 — Reglas de publicación** (sin VPN).
+**Parada humana pendiente:** el usuario tiene que aprobar la cobertura de Argentina
+(`docs/ARGENTINA_COBERTURA.md`) antes de darla por buena para publicar.
+
+1. **T0.6 — País real de los clubes** (sin VPN): los 254 clubes con `pais="Conmebol"`
+   romperían un "Top 10 de Argentina".
+2. **T0.5 — Reglas de publicación** (sin VPN): depende de T0.6 y de la cobertura.
+3. **T1.2 / T1.4 / T1.1** (sin VPN) se pueden adelantar: parametrizar el ELO, arreglar
+   el K de eliminatorias y armar el backtest no dependen de la cobertura.
 
 ## Comandos útiles para retomar
 

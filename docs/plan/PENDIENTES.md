@@ -43,10 +43,12 @@ opciones, escribila debajo de la línea para que quede el registro.
 
 ## 2. Decisiones (aprobar)
 
-- [ ] **Cobertura de Argentina** — al terminar **T0.4**.
-  - Qué vas a ver: una tabla año por año de `AR1N`, `ARG2` y `CDLP`, con los huecos y su
-    causa. Hoy faltan **2017-2020** y **2025-26** en Primera (y 2017-2020 en la B).
-  - Qué tenés que decir: si la cobertura alcanza para publicar rankings de Argentina.
+- [ ] **Cobertura de Argentina** — **T0.4 terminó el 2026-10-28, esperando tu visto bueno**.
+  - Resultado (detalle en `docs/ARGENTINA_COBERTURA.md`): Primera 2017-2020 recuperada
+    (98-100 %), `ARG1`/`ARGC` 2025-26 nuevas (99-100 %), y la Primera Nacional 2018-2026
+    por encima del 98 %. Los porcentajes más bajos (ARG2 2015-2017, hasta 65 %) son
+    partidos que TM publica sin entrenador; se recuperan en T0.9.
+  - Qué tenés que decir: si con esto alcanza para publicar rankings de Argentina.
 
 - [ ] **Parámetros del modelo ELO** — al terminar **T1.5**.
   - Qué vas a ver: la configuración elegida por el backtest (ventaja de local, factor K,
@@ -92,3 +94,4 @@ opciones, escribila debajo de la línea para que quede el registro.
 - [x] Uso personal (marca personal), sin monetizar.
 - [x] Arreglar los datos históricos en lugar de recortar el modelo.
 - [x] T0.3: corregir fechas de los **bloques completos** (669 partidos re-descargados), no solo los conflictivos.
+- [x] T0.4: backfill de Argentina completo (Primera + Primera Nacional), ~3.500 requests.

@@ -31,6 +31,10 @@ class LeagueCandidate:
     coefficient: float
     path: str = "wettbewerb"  # wettbewerb | pokalwettbewerb
     first_season: int = BACKFILL_FIRST_SEASON
+    # Última temporada que existe en TM. `None` = sigue vigente. Sirve para no
+    # reportar como "hueco" los años posteriores al cierre de una competencia y
+    # para que el pipeline semanal no pida temporadas que ya no existen.
+    last_season: int | None = None
     verified: bool = True
     note: str = ""
 
@@ -39,9 +43,19 @@ class LeagueCandidate:
 # agrupa la temporada real bajo el saison_id del año anterior).
 CATALOG: tuple[LeagueCandidate, ...] = (
     # --- Argentina (ya cargadas) -----------------------------------------
-    LeagueCandidate("AR1N", "Liga Profesional", "Argentina", "CONMEBOL", "liga", 1, 378, "A", 1.00),
+    LeagueCandidate("AR1N", "Liga Profesional", "Argentina", "CONMEBOL", "liga", 1, 378, "A", 1.00,
+                    last_season=2024,
+                    note="TM la da por terminada en 23/24: desde 2025 la Primera va en ARG1/ARGC"),
     LeagueCandidate("ARG2", "Primera Nacional", "Argentina", "CONMEBOL", "liga", 1, 660, "C", 0.60),
-    LeagueCandidate("CDLP", "Copa de la Liga Profesional", "Argentina", "CONMEBOL", "copa", 1, 196, "B", 0.80),
+    # Desde 2025 la Primera División se juega como Torneo Apertura + Torneo Clausura,
+    # cada uno en su propia competencia de TM (30 equipos, 240 partidos por torneo).
+    LeagueCandidate("ARG1", "Torneo Apertura (Primera División)", "Argentina", "CONMEBOL", "liga", 1, 240, "A", 1.00,
+                    first_season=2025, note="temporada de año calendario: saison_id = año - 1"),
+    LeagueCandidate("ARGC", "Torneo Clausura (Primera División)", "Argentina", "CONMEBOL", "liga", 1, 240, "A", 1.00,
+                    first_season=2025, note="temporada de año calendario: saison_id = año - 1"),
+    LeagueCandidate("CDLP", "Copa de la Liga Profesional", "Argentina", "CONMEBOL", "copa", 1, 196, "B", 0.80,
+                    last_season=2024,
+                    note="dejó de jugarse en 2024; desde 2025 la Primera va en ARG1/ARGC"),
     LeagueCandidate("CDCA", "Copa de la Liga - Playoffs", "Argentina", "CONMEBOL", "copa", 1, 4, "B", 0.80),
     LeagueCandidate("ARCA", "Copa Argentina", "Argentina", "CONMEBOL", "copa", 1, 63, "B", 0.80, "pokalwettbewerb"),
     # --- Conmebol ---------------------------------------------------------

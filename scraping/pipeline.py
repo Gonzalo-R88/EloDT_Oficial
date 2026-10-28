@@ -46,12 +46,18 @@ def season_is_aligned(fixtures: list[Fixture], season: int) -> bool:
 
     Cuando Transfermarkt no tiene el `saison_id` solicitado devuelve el fixture
     de la temporada actual; eso cachearía partidos de otro año bajo el directorio
-    equivocado. Se considera alineado si el fixture arranca en el año `season`.
+    equivocado. Se considera alineado si el año pedido cae **dentro** del rango de
+    fechas del fixture.
+
+    Antes se exigía que la temporada arrancara exactamente en `season`, lo que
+    descartaba las temporadas partidas (agosto-junio): al pedir 2017, TM devolvía
+    la 2016/17 (fechas de 2016) y se tiraba el fixture completo. Eso dejó a
+    Argentina sin 2017-2020 en la base.
     """
     years = [int(f.date[:4]) for f in fixtures if f.date]
     if not years:
         return False
-    return min(years) == season
+    return min(years) <= season <= max(years)
 
 
 # ---------------------------------------------------------------------------

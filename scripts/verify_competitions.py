@@ -36,7 +36,12 @@ def build_fixture_url(candidate: LeagueCandidate, season: int) -> str:
     )
 
 
-def verify(candidate: LeagueCandidate, season: int, client: TransfermarktClient) -> dict:
+def verify(
+    candidate: LeagueCandidate,
+    season: int,
+    client: TransfermarktClient,
+    no_align_check: bool = False,
+) -> dict:
     try:
         html = client.get(build_fixture_url(candidate, season))
         fixtures = parse_schedule(html, candidate.code, season)
@@ -44,19 +49,22 @@ def verify(candidate: LeagueCandidate, season: int, client: TransfermarktClient)
         return {"code": candidate.code, "status": "ERROR", "fixtures": 0, "detalle": str(exc)}
 
     count = len(fixtures)
-    fechas = [f.date for f in fixtures if f.date]
+    fechas = sorted(f.date for f in fixtures if f.date)
     if count == 0 or not fechas:
         return {"code": candidate.code, "status": "VACIO", "fixtures": count, "detalle": "sin partidos"}
 
     years = [int(fecha[:4]) for fecha in fechas]
     min_year, max_year = min(years), max(years)
     rango = f"{min_year}-{max_year}"
+    detalle = f"fechas={fechas[0]}..{fechas[-1]} ({rango})"
     # Una configuración correcta de `saison_offset` hace que la temporada real
-    # `season` sea el año en que ARRANCA el fixture (min_year == season). Si no,
-    # TM devolvió otra temporada (típicamente el fallback de la actual) y hay que
-    # corregir el offset o el código.
-    if min_year != season:
-        return {"code": candidate.code, "status": "FUERA", "fixtures": count, "detalle": f"fechas={rango}"}
+    # `season` caiga dentro del rango de fechas del fixture. Se exige que el año
+    # pedido sea >= year mínimo (TM devolvió otra temporada, típicamente la actual).
+    # Las temporadas partidas (agosto-junio) arrancan el año anterior: por eso se
+    # acepta `season` dentro del rango y no solo como año de arranque.
+    # `--no-align-check` sirve para diagnosticar: muestra el fixture tal cual.
+    if not no_align_check and not (min_year <= season <= max_year):
+        return {"code": candidate.code, "status": "FUERA", "fixtures": count, "detalle": detalle}
 
     if candidate.est_matches and abs(count - candidate.est_matches) / candidate.est_matches > 0.35:
         status = "REVISAR"
@@ -70,12 +78,34 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Verifica códigos de competencias (AEP).")
     parser.add_argument("--season", type=int, default=2023, help="Temporada real de muestra (default 2023).")
     parser.add_argument("--codes", help="Lista separada por comas; por defecto, todo el catálogo.")
+    parser.add_argument("--saison-offset", type=int, default=None,
+                        help="Offset para códigos fuera del catálogo (default: el del catálogo, o 1).")
+    parser.add_argument("--path", default="wettbewerb",
+                        help="camino de TM para códigos fuera del catálogo: wettbewerb | pokalwettbewerb")
+    parser.add_argument("--no-align-check", action="store_true",
+                        help="No marcar FUERA cuando la temporada pedida no cae en el rango de fechas.")
     args = parser.parse_args(argv)
 
-    candidates = CATALOG
+    by_code = {c.code.upper(): c for c in CATALOG}
     if args.codes:
-        wanted = {c.strip().upper() for c in args.codes.split(",")}
-        candidates = tuple(c for c in CATALOG if c.code.upper() in wanted)
+        seleccion = [c.strip().upper() for c in args.codes.split(",") if c.strip()]
+        candidates = []
+        for code in seleccion:
+            conocido = by_code.get(code)
+            if conocido is not None:
+                candidates.append(conocido)
+            else:
+                # Código fuera del catálogo: se arma un candidato para poder probarlo.
+                candidates.append(
+                    LeagueCandidate(
+                        code=code, name=code, country="", confederation="", kind="liga",
+                        saison_offset=args.saison_offset or 1, est_matches=0, tier="C",
+                        coefficient=1.0, path=args.path,
+                    )
+                )
+        candidates = tuple(candidates)
+    else:
+        candidates = CATALOG
 
     client = TransfermarktClient(
         delay_min=settings.request_delay_min,
@@ -88,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
     print("-" * 70)
     counts = {"OK": 0, "REVISAR": 0, "VACIO": 0, "FUERA": 0, "ERROR": 0}
     for candidate in candidates:
-        result = verify(candidate, args.season, client)
+        result = verify(candidate, args.season, client, no_align_check=args.no_align_check)
         counts[result["status"]] += 1
         print(
             f"{result['code']:7} {result['status']:8} {result['fixtures']:>9}  "

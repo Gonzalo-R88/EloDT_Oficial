@@ -62,6 +62,21 @@ def test_cobertura_marca_huecos_con_ratio_cero():
     assert cobertura["AR1N"][2024].ratio == 1.0
 
 
+def test_cobertura_se_detiene_en_la_ultima_temporada_de_una_competencia_cerrada():
+    """Una competencia que terminó (AR1N en 2024) no debe reportar huecos posteriores."""
+    fixtures = [_fixture("AR1N", 2024, 1)]
+    cobertura, _ = construir_cobertura(
+        fixtures,
+        ids_en_db={1},
+        primera_temporada={"AR1N": 2023},
+        anio_actual=2026,
+        ultima_temporada={"AR1N": 2024},
+    )
+
+    assert sorted(cobertura["AR1N"]) == [2023, 2024]
+    assert cobertura["AR1N"][2024].ratio == 1.0
+
+
 def test_cobertura_incluye_anos_previos_a_la_primera_temporada_del_catalogo():
     """Si el caché tiene años anteriores a `first_season`, se muestran igual."""
     fixtures = [_fixture("EC1N", 2019, 1)]
