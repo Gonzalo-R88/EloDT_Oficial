@@ -288,12 +288,13 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-**Parada humana pendiente:** el usuario tiene que aprobar la cobertura de Argentina
-(`docs/ARGENTINA_COBERTURA.md`) antes de darla por buena para publicar.
-
-1. **T0.6 — País real de los clubes** (sin VPN): los 254 clubes con `pais="Conmebol"`
-   romperían un "Top 10 de Argentina".
+1. **T0.6 — País real de los clubes** (sin VPN). **Es lo único que bloquea T0.5**: los
+   254 clubes con `pais="Conmebol"` hacen que el filtro "DT de Argentina" devuelva 3 en
+   vez de ~120.
 2. **T0.5 — Reglas de publicación** (sin VPN): depende de T0.6 y de la cobertura.
+   La aprobación del usuario es solo sobre los umbrales (90 % de cobertura en los
+   últimos 3 años), no sobre el código: medido con los datos actuales, 1.272 de 1.364
+   DTs activos pasan la regla y todas las ligas argentinas están en 1,00.
 3. **T1.2 / T1.4 / T1.1** (sin VPN) se pueden adelantar: parametrizar el ELO, arreglar
    el K de eliminatorias y armar el backtest no dependen de la cobertura.
 

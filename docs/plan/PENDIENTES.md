@@ -43,7 +43,14 @@ opciones, escribila debajo de la línea para que quede el registro.
 
 ## 2. Decisiones (aprobar)
 
-- [ ] **Cobertura de Argentina** — **T0.4 terminó el 2026-10-28, esperando tu visto bueno**.
+- [ ] **Umbral de cobertura para publicar** — no bloquea el trabajo; se puede responder cuando quieras.
+  - La regla propuesta: un DT es publicable si jugó en el último año, tiene 15+ partidos y
+    **su liga tiene 90 % o más de cobertura en los últimos 3 años**.
+  - Con los datos de hoy pasan 1.272 de 1.364 DTs activos; todas las ligas argentinas
+    están al 100 %. Los que quedan afuera son de Bolivia, Ecuador y Colombia.
+  - Si te parece bien el 90 %, no hace falta que hagas nada: es el valor por defecto.
+
+- [ ] **Cobertura de Argentina** — **T0.4 terminó el 2026-10-28** (queda tu comentario).
   - Resultado (detalle en `docs/ARGENTINA_COBERTURA.md`): Primera 2017-2020 recuperada
     (98-100 %), `ARG1`/`ARGC` 2025-26 nuevas (99-100 %), y la Primera Nacional 2018-2026
     por encima del 98 %. Los porcentajes más bajos (ARG2 2015-2017, hasta 65 %) son
