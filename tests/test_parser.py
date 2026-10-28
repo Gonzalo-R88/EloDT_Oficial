@@ -135,6 +135,51 @@ def test_parse_match_report_extracts_coaches_and_bench_metrics():
     assert report.impacto_banco_visita == -1
 
 
+REPORTE_LAYOUT_VIEJO = """
+<html><body>
+<div class="box">
+  <div class="large-6 columns aufstellung-box">
+    <table><tbody><tr><td>Manager
+      <a title="Enrique Meza" href="/enrique-meza/profil/trainer/5101">Enrique Meza</a>
+    </td></tr></tbody></table>
+  </div>
+  <div class="large-6 columns">
+    <table><tbody><tr><td>Manager
+      <a title="Alexandre Gallo" href="/alexandre-gallo/profil/trainer/4733">Alexandre Gallo</a>
+    </td></tr></tbody></table>
+  </div>
+</div>
+<div class="sb-endstand">2:1</div>
+</body></html>
+"""
+
+
+def test_parse_match_report_encuentra_dts_en_el_layout_viejo():
+    """Las páginas viejas no tienen `tr.bench-table__tr`: los DTs están en `div.box`."""
+    report = parse_match_report(REPORTE_LAYOUT_VIEJO, 994417)
+
+    assert report.home_coach_tm_id == 5101
+    assert report.home_coach_name == "Enrique Meza"
+    assert report.away_coach_tm_id == 4733
+    assert report.away_coach_name == "Alexandre Gallo"
+
+
+def test_parse_match_report_con_un_solo_dt_no_adivina_el_lado():
+    """Con un solo entrenador en la página no se puede saber si es local o visitante."""
+    html = """
+    <html><body>
+    <div class="box"><table><tbody><tr><td>Manager
+      <a title="Alfio Basile" href="/alfio-basile/profil/trainer/1234">Alfio Basile</a>
+    </td></tr></tbody></table></div>
+    <div class="sb-endstand">3:2</div>
+    </body></html>
+    """
+    report = parse_match_report(html, 3296964)
+
+    assert report.home_coach_tm_id is None
+    assert report.away_coach_tm_id is None
+
+
 def test_parse_match_report_extrae_la_fecha_del_reporte():
     """La fecha del reporte es la única confiable: el fixture la hereda de la fila previa."""
     report = parse_match_report(MATCH_HTML, 4283434)
@@ -182,10 +227,16 @@ def test_parse_match_report_without_timeline_defaults_to_zero():
     html = """
     <html><body>
     <div class="sb-endstand">0:0</div>
-    <table><tr class="bench-table__tr">
-      <td><div>Manager:</div></td>
-      <td><a title="Uno" id="1" href="/uno/profil/trainer/1">Uno</a></td>
-    </tr></table>
+    <table>
+      <tr class="bench-table__tr">
+        <td><div>Manager:</div></td>
+        <td><a title="Uno" id="1" href="/uno/profil/trainer/1">Uno</a></td>
+      </tr>
+      <tr class="bench-table__tr">
+        <td><div>Manager:</div></td>
+        <td>(interino)</td>
+      </tr>
+    </table>
     </body></html>
     """
     report = parse_match_report(html, 1)

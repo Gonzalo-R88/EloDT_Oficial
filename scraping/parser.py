@@ -151,23 +151,43 @@ def parse_report_date(html: str) -> Optional[str]:
     return _parse_report_date(BeautifulSoup(html, "lxml"))
 
 
+def _entrenador_de_link(link) -> tuple[Optional[int], Optional[str]]:
+    """`(tm_id, nombre)` de un enlace a un perfil de entrenador."""
+    id_match = _TRAINER_ID_RE.search(link.get("href", ""))
+    tm_id = int(id_match.group(1)) if id_match else None
+    nombre = _text(link.get("title")) or _text(link.get_text())
+    return tm_id, nombre
+
+
+def _entrenador_de_fila(fila) -> tuple[Optional[int], Optional[str]]:
+    """`(tm_id, nombre)` del entrenador de una fila del banco (o `(None, None)`)."""
+    link = fila.select_one("a[href*='/profil/trainer/']")
+    if link is None:
+        return None, None
+    return _entrenador_de_link(link)
+
+
 def _parse_coaches(soup: BeautifulSoup) -> tuple[Optional[int], Optional[str], Optional[int], Optional[str]]:
-    """Extrae los DTs local y visitante del reporte (orden: home, away)."""
-    links = soup.select("tr.bench-table__tr a[href*='/profil/trainer/']")
-    home_id = home_name = away_id = away_name = None
+    """Extrae los DTs local y visitante del reporte (orden: home, away).
 
-    if links:
-        first = links[0]
-        id_match = _TRAINER_ID_RE.search(first.get("href", ""))
-        home_id = int(id_match.group(1)) if id_match else None
-        home_name = _text(first.get("title")) or _text(first.get_text())
+    Hay dos layouts. El actual pone los técnicos en la tabla del banco
+    (`tr.bench-table__tr`). Las páginas viejas (p. ej. la Recopa 2007) los muestran
+    en el encabezado de cada equipo (`div.box`, con la etiqueta "Manager"), así que
+    si el primer selector no encuentra los dos, se cae a ese.
+    """
+    # Layout actual: una fila de banco por equipo (fila 0 = local, fila 1 = visitante).
+    filas = soup.select("tr.bench-table__tr")
+    if len(filas) >= 2:
+        return (*_entrenador_de_fila(filas[0]), *_entrenador_de_fila(filas[1]))
+
+    # Layout viejo: los técnicos están en el encabezado de cada equipo (`div.box`),
+    # en orden local -> visitante. Sólo se usa si están los dos: con uno solo no hay
+    # forma inequívoca de saber de qué lado está, y adivinar invertiría el resultado.
+    links = soup.select("div.box a[href*='/profil/trainer/']")
     if len(links) >= 2:
-        second = links[1]
-        id_match = _TRAINER_ID_RE.search(second.get("href", ""))
-        away_id = int(id_match.group(1)) if id_match else None
-        away_name = _text(second.get("title")) or _text(second.get_text())
+        return (*_entrenador_de_link(links[0]), *_entrenador_de_link(links[1]))
 
-    return home_id, home_name, away_id, away_name
+    return None, None, None, None
 
 
 def _parse_events(soup: BeautifulSoup) -> list[TimelineEvent]:
