@@ -61,11 +61,17 @@ CATALOG: tuple[LeagueCandidate, ...] = (
     # --- Conmebol ---------------------------------------------------------
     LeagueCandidate("CLI", "Copa Libertadores", "Conmebol", "CONMEBOL", "internacional", 1, 155, "S", 1.30, "pokalwettbewerb"),
     LeagueCandidate("CS", "Copa Sudamericana", "Conmebol", "CONMEBOL", "internacional", 1, 157, "A", 1.00, "pokalwettbewerb"),
+    # La Recopa Sudamericana (campeón de Libertadores vs campeón de Sudamericana,
+    # dos partidos en febrero) es `RECO`. Verificado 2026-10-28: saison_id 2024 =
+    # Racing 2-0 Botafogo (2025) y saison_id 2025 = Lanús 1-0 Flamengo (2026).
+    LeagueCandidate("RECO", "Recopa Sudamericana", "Conmebol", "CONMEBOL", "internacional", 1, 2, "B", 0.80,
+                    "pokalwettbewerb", first_season=2003,
+                    note="2 partidos por año, en febrero; saison_id = año - 1 (no se jugó 2000-2002)"),
     # OJO: `RESU` NO es la Recopa Sudamericana. En TM es "Relegation Superettan"
     # (playoffs de ascenso/descenso del fútbol sueco, noviembre, series de ida y
     # vuelta). Estuvo mal clasificado como competencia internacional de Conmebol
     # hasta 2026-10-28, lo que además etiquetaba clubes suecos como "Conmebol".
-    LeagueCandidate("RESU", "Relegation Superettan (playoffs)", "Suecia", "UEFA", "copa", 1, 4, "B", 0.80,
+    LeagueCandidate("RESU", "Relegation Superettan (playoffs)", "Suecia", "UEFA", "copa", 1, 4, "C", 0.60,
                     "pokalwettbewerb", note="playoffs de ascenso/descenso suecos; NO es la Recopa"),
     # --- Sudamérica -------------------------------------------------------
     LeagueCandidate("BRA1", "Brasileirão Série A", "Brasil", "CONMEBOL", "liga", 1, 380, "A", 1.00),
