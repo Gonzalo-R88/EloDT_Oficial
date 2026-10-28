@@ -76,6 +76,26 @@ def rutas_objetivo(
     return objetivos
 
 
+def _archivo_intentados(data_dir: Path) -> Path:
+    """IDs ya pedidos que no dieron los dos DTs: no se vuelven a pedir."""
+    return Path(data_dir) / "work" / "refetch_sin_dts.txt"
+
+
+def _intentados(data_dir: Path) -> set[int]:
+    ruta = _archivo_intentados(data_dir)
+    if not ruta.exists():
+        return set()
+    with open(ruta, encoding="utf-8") as archivo:
+        return {int(linea) for linea in archivo.read().split() if linea.isdigit()}
+
+
+def _marcar_intentado(data_dir: Path, match_id: int) -> None:
+    ruta = _archivo_intentados(data_dir)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    with open(ruta, "a", encoding="utf-8") as archivo:
+        archivo.write(f"{match_id}\n")
+
+
 def listar_faltantes(data_dir: Path, desde: int, hasta: int, destino: Path) -> int:
     """Escribe los fixtures cacheados que NO están en la base (candidatos a rescrape)."""
     desde_db = create_session()
@@ -91,6 +111,8 @@ def listar_faltantes(data_dir: Path, desde: int, hasta: int, destino: Path) -> i
     finally:
         desde_db.close()
 
+    store = RawStore(data_dir)
+    intentados = _intentados(data_dir)
     faltantes: list[list] = []
     for codigo, temporada, ruta in rutas_fixtures(data_dir):
         with open(ruta, encoding="utf-8") as archivo:
@@ -103,7 +125,17 @@ def listar_faltantes(data_dir: Path, desde: int, hasta: int, destino: Path) -> i
                     continue
                 if item.get("match_id") is None or int(item["match_id"]) in en_db:
                     continue
-                faltantes.append([codigo, temporada, int(item["match_id"])])
+                match_id = int(item["match_id"])
+                if match_id in intentados:
+                    continue
+                # Si el reporte ya tiene los dos DTs, no hay que volver a pedirlo:
+                # sólo falta cargarlo (eso lo hace `load` al final del backfill).
+                # Evita re-descargar todo cuando el backfill se reanuda.
+                if store.has_match(codigo, temporada, match_id):
+                    reporte = store.read_match(codigo, temporada, match_id)
+                    if reporte.get("home_coach_tm_id") and reporte.get("away_coach_tm_id"):
+                        continue
+                faltantes.append([codigo, temporada, match_id])
 
     destino.parent.mkdir(parents=True, exist_ok=True)
     with open(destino, "w", encoding="utf-8") as archivo:
@@ -183,6 +215,10 @@ def main(argv: list[str] | None = None) -> int:
         store.write_match(codigo, temporada, match_id, asdict(report))
         if report.home_coach_tm_id and report.away_coach_tm_id:
             recuperados += 1
+        else:
+            # Ya se pidió y no tiene los dos DTs: no se vuelve a pedir en la próxima
+            # corrida (si así fuera, cada reanudación repetiría ~10 % del lote).
+            _marcar_intentado(data_dir, match_id)
         if posicion % 25 == 0:
             logger.info("[%s/%s] recuperados hasta ahora: %s", posicion, len(objetivos), recuperados)
 
