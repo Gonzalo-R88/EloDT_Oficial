@@ -139,13 +139,27 @@
     competencia internacional de Conmebol, y por eso clubes suecos figuraban como
     "Conmebol". Reclasificada como copa sueca de tier C (coef 0,60) en el catálogo y
     en la DB.
-13. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
+13. **Bug del parser con los reportes viejos (importante).** Las páginas antiguas no
+    tienen `tr.bench-table__tr`: los técnicos están en el encabezado de cada equipo
+    (`div.box`). `_parse_coaches` sólo miraba el layout nuevo, así que **descartaba
+    partidos con DT presente en la página** (`sin_dt`). Ahora lee el DT por fila del
+    banco (fila 0 local, fila 1 visitante) y cae a `div.box` si la página es vieja, y
+    **no adivina el lado cuando hay un solo DT** (antes lo asignaba al local y podía
+    invertir el resultado). Medición sobre 36 reportes "sin DT": **89 % recupera ambos
+    entrenadores**. `scripts/refetch_reportes.py` (**nuevo**) permite re-descargar los
+    afectados (`--sin-dt --desde 2015 --hasta 2026 --codes ... --apply`).
+    **Decisión del usuario (2026-10-28):** recuperar **2012-2026 = 8.932 partidos**
+    (`scripts/backfill_dts.sh`, 3 workers, ~9-10 h). Pre-2015 queda para T0.9
+    (imputación por etapas, sin requests). `persist_matches` ganó un fast-path: saltea
+    los `tm_match_id` ya cargados antes de hacer consultas por partido, así la recarga
+    de una temporada entera tarda segundos.
+14. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.
     Backfill 2003-2026: **39 partidos** cargados. Base: **195.338 partidos**,
     **6.734 DTs**, `validate_elo.py` en verde, conflictos de fecha 25.
     Faltan en TM las ediciones 2007, 2009 y 2010 (ratio 0 en la auditoría).
-14. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+15. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
     distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
     (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
     (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
@@ -158,7 +172,7 @@
     **6.732 DTs** (+3.368 partidos), `validate_elo.py` en verde, conflictos de
     fecha sin cambios (25). Cobertura argentina 2017-2020 recuperada (0,98-1,00)
     y 2025-26 nueva (0,99-1,00). 62 tests verdes.
-15. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+16. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
     **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
     de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
     de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas

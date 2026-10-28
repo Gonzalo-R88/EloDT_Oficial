@@ -27,7 +27,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from sqlalchemy import select  # noqa: E402
+
+from auditoria import rutas_fixtures  # noqa: E402
 from config import settings  # noqa: E402
+from db import create_session  # noqa: E402
+from models import MatchCoach  # noqa: E402
 from scraping.parser import parse_match_report  # noqa: E402
 from scraping.pipeline import build_match_url  # noqa: E402
 from scraping.storage import RawStore  # noqa: E402
@@ -71,6 +76,42 @@ def rutas_objetivo(
     return objetivos
 
 
+def listar_faltantes(data_dir: Path, desde: int, hasta: int, destino: Path) -> int:
+    """Escribe los fixtures cacheados que NO están en la base (candidatos a rescrape)."""
+    desde_db = create_session()
+    try:
+        en_db = {
+            int(valor)
+            for valor in desde_db.execute(
+                select(MatchCoach.transfermarkt_match_id).where(
+                    MatchCoach.transfermarkt_match_id.is_not(None)
+                )
+            ).scalars()
+        }
+    finally:
+        desde_db.close()
+
+    faltantes: list[list] = []
+    for codigo, temporada, ruta in rutas_fixtures(data_dir):
+        with open(ruta, encoding="utf-8") as archivo:
+            for item in json.load(archivo):
+                fecha = (item.get("date") or "")[:4]
+                if not fecha.isdigit():
+                    continue
+                anio = int(fecha)
+                if anio < desde or anio > hasta:
+                    continue
+                if item.get("match_id") is None or int(item["match_id"]) in en_db:
+                    continue
+                faltantes.append([codigo, temporada, int(item["match_id"])])
+
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with open(destino, "w", encoding="utf-8") as archivo:
+        json.dump(faltantes, archivo)
+    print(f"faltantes {desde}-{hasta}: {len(faltantes)} -> {destino}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Re-descarga reportes cacheados.")
     parser.add_argument("--desde", type=int, default=None, help="Temporada mínima (año).")
@@ -79,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sin-fecha", action="store_true", help="Sólo reportes sin fecha.")
     parser.add_argument("--codes", default=None,
                         help="Competencias separadas por coma (default: todas).")
+    parser.add_argument("--listar-faltantes", type=Path, default=None,
+                        help="Escribe en ese JSON los fixtures cacheados que NO están en la base y sale.")
+    parser.add_argument("--ids-file", type=Path, default=None,
+                        help="JSON con [[codigo, temporada, match_id], ...] (evita escanear el caché).")
+    parser.add_argument("--shard", default=None, metavar="I/N",
+                        help="Procesar sólo la parte I de N (para correr varios workers en paralelo).")
     parser.add_argument("--limit", type=int, default=None, help="Máximo de reportes a procesar.")
     parser.add_argument("--apply", action="store_true", help="Escribir el caché.")
     args = parser.parse_args(argv)
@@ -87,10 +134,27 @@ def main(argv: list[str] | None = None) -> int:
 
     data_dir = settings.data_dir
     store = RawStore(data_dir)
-    codigos = {c.strip().upper() for c in args.codes.split(",")} if args.codes else None
-    objetivos = rutas_objetivo(
-        data_dir, args.desde, args.hasta, args.sin_dt, args.sin_fecha, codigos
-    )
+    if args.listar_faltantes is not None:
+        return listar_faltantes(
+            data_dir,
+            args.desde if args.desde is not None else 2000,
+            args.hasta if args.hasta is not None else 2100,
+            args.listar_faltantes,
+        )
+
+    if args.ids_file is not None:
+        with open(args.ids_file, encoding="utf-8") as archivo:
+            objetivos = [tuple(item) for item in json.load(archivo)]
+    else:
+        codigos = {c.strip().upper() for c in args.codes.split(",")} if args.codes else None
+        objetivos = rutas_objetivo(
+            data_dir, args.desde, args.hasta, args.sin_dt, args.sin_fecha, codigos
+        )
+
+    if args.shard:
+        indice, total = (int(parte) for parte in args.shard.split("/"))
+        objetivos = objetivos[indice - 1 :: total]
+
     if args.limit is not None:
         objetivos = objetivos[: args.limit]
 

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from config import settings
 from db import create_session
-from models import Club, Coach, Competition
+from models import Club, Coach, Competition, MatchCoach
 from services import STATUS_DUPLICATE, STATUS_PROCESSED, process_match_elo
 from scraping.client import TransfermarktClient
 from scraping.competitions import CompetitionConfig, get_competition
@@ -280,7 +280,21 @@ def persist_matches(
     competition_cache: dict[str, Competition] = {}
 
     try:
+        # Fast-path para recargas: los partidos ya cargados se saltean sin hacer
+        # las consultas de entidad por partido (recargar una temporada entera pasa
+        # de minutos a segundos).
+        ya_cargados = set(
+            db_session.execute(
+                select(MatchCoach.transfermarkt_match_id).where(
+                    MatchCoach.transfermarkt_match_id.is_not(None)
+                )
+            ).scalars()
+        )
+
         for match in matches:
+            if match.tm_match_id in ya_cargados:
+                stats["duplicados"] += 1
+                continue
             if match.home_coach_tm_id is None or match.away_coach_tm_id is None:
                 stats["sin_dt"] += 1
                 logger.warning("Partido %s sin DT (interino/ausente); se omite.", match.tm_match_id)
