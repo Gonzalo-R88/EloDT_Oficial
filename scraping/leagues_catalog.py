@@ -61,7 +61,12 @@ CATALOG: tuple[LeagueCandidate, ...] = (
     # --- Conmebol ---------------------------------------------------------
     LeagueCandidate("CLI", "Copa Libertadores", "Conmebol", "CONMEBOL", "internacional", 1, 155, "S", 1.30, "pokalwettbewerb"),
     LeagueCandidate("CS", "Copa Sudamericana", "Conmebol", "CONMEBOL", "internacional", 1, 157, "A", 1.00, "pokalwettbewerb"),
-    LeagueCandidate("RESU", "Recopa Sudamericana", "Conmebol", "CONMEBOL", "internacional", 1, 4, "B", 0.80, "pokalwettbewerb"),
+    # OJO: `RESU` NO es la Recopa Sudamericana. En TM es "Relegation Superettan"
+    # (playoffs de ascenso/descenso del fútbol sueco, noviembre, series de ida y
+    # vuelta). Estuvo mal clasificado como competencia internacional de Conmebol
+    # hasta 2026-10-28, lo que además etiquetaba clubes suecos como "Conmebol".
+    LeagueCandidate("RESU", "Relegation Superettan (playoffs)", "Suecia", "UEFA", "copa", 1, 4, "B", 0.80,
+                    "pokalwettbewerb", note="playoffs de ascenso/descenso suecos; NO es la Recopa"),
     # --- Sudamérica -------------------------------------------------------
     LeagueCandidate("BRA1", "Brasileirão Série A", "Brasil", "CONMEBOL", "liga", 1, 380, "A", 1.00),
     LeagueCandidate("BRA2", "Brasileirão Série B", "Brasil", "CONMEBOL", "liga", 1, 380, "B", 0.80),

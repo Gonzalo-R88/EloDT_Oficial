@@ -21,6 +21,10 @@ from scraping.storage import RawStore
 
 logger = logging.getLogger(__name__)
 
+# País para clubes que todavía no jugaron ninguna competencia doméstica. No se usa el
+# país de la competencia internacional ("Conmebol") porque no es el país del club.
+PAIS_DESCONOCIDO = "desconocido"
+
 
 # ---------------------------------------------------------------------------
 # URLs
@@ -215,6 +219,17 @@ def ensure_competition(session: Session, config: CompetitionConfig) -> Competiti
         )
         session.add(competition)
         session.flush()
+    else:
+        # El catálogo es la fuente de verdad de los metadatos. Se sincronizan sólo
+        # los que NO afectan el ELO: `nivel` y `coeficiente` cambian únicamente con
+        # un `recompute` explícito (ver AGENTS.md).
+        if (competition.nombre, competition.pais, competition.tipo) != (
+            config.name, config.country, config.kind
+        ):
+            competition.nombre = config.name
+            competition.pais = config.country
+            competition.tipo = config.kind
+            session.flush()
     return competition
 
 
@@ -225,6 +240,11 @@ def ensure_club(session: Session, tm_id: int, name: str, country: str) -> Club:
     if club is None:
         club = Club(transfermarkt_id=tm_id, nombre=name, pais=country)
         session.add(club)
+        session.flush()
+    elif club.pais in (None, "", PAIS_DESCONOCIDO) and country != PAIS_DESCONOCIDO:
+        # Un club que apareció primero en un torneo internacional se corrige solo
+        # en cuanto juega una competencia doméstica.
+        club.pais = country
         session.flush()
     return club
 
@@ -276,11 +296,14 @@ def persist_matches(
                 competition = ensure_competition(db_session, config)
                 competition_cache[config.code] = competition
 
+            # El país de la competencia sólo sirve como país del club si es doméstica:
+            # en Libertadores/Sudamericana la competencia es "Conmebol", no un país.
+            pais_club = config.country if config.kind != "internacional" else PAIS_DESCONOCIDO
             home_club = ensure_club(
-                db_session, match.home_club_tm_id, match.home_club_name, config.country
+                db_session, match.home_club_tm_id, match.home_club_name, pais_club
             )
             away_club = ensure_club(
-                db_session, match.away_club_tm_id, match.away_club_name, config.country
+                db_session, match.away_club_tm_id, match.away_club_name, pais_club
             )
             home_coach = ensure_coach(
                 db_session, match.home_coach_tm_id, match.home_coach_name or ""

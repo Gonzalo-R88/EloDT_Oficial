@@ -123,7 +123,24 @@
     necesarios y corrige `partidos_dt.fecha`. `tests/test_fix_fechas.py` (**nuevo**,
     4 tests) y 5 tests más de parser/pipeline → **59 tests verdes**.
     `docs/CONFLICTOS_FECHA.md` (**nuevo**) explica el defecto y los casos restantes.
-11. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+11. **T0.6 — país de los clubes (NUEVO).** `ensure_club` guardaba el país de la
+    **competencia**: para Libertadores/Sudamericana eso es "Conmebol", así que 254
+    clubes quedaban con `pais="Conmebol"` y el filtro "DT de Argentina" devolvía 3 en
+    vez de ~146. Ahora un club nace como `desconocido` si la competencia es
+    internacional, se autocorrige al jugar una liga doméstica, y
+    `scripts/fix_club_country.py` (**nuevo**, dry-run + `--apply`, idempotente) asignó
+    el país según la liga doméstica donde el club más juega (+6 tests). Resultado:
+    **0 clubes "Conmebol"**, 12 quedan `desconocido` (sólo jugaron torneos
+    internacionales) y hay **146 DTs activos con club argentino** (107 con ≥15 PJ).
+    `ensure_competition` ahora sincroniza nombre/país/tipo desde el catálogo (nunca
+    `nivel`/`coeficiente`, que necesitan `recompute`). ELO intacto (masa 6.732.000).
+12. **Hallazgo: `RESU` no es la Recopa Sudamericana.** En TM es **"Relegation
+    Superettan"** (playoffs suecos de noviembre). Estaba en el catálogo como
+    competencia internacional de Conmebol, y por eso clubes suecos figuraban como
+    "Conmebol". Corregido en `leagues_catalog.py` (Suecia, `copa`) y en la DB. **La
+    Recopa Sudamericana real no está en la base** (son 2 partidos por año; sumarla
+    queda como mejora opcional).
+13. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
     distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
     (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
     (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
@@ -288,14 +305,14 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-1. **T0.6 — País real de los clubes** (sin VPN). **Es lo único que bloquea T0.5**: los
-   254 clubes con `pais="Conmebol"` hacen que el filtro "DT de Argentina" devuelva 3 en
-   vez de ~120.
-2. **T0.5 — Reglas de publicación** (sin VPN): depende de T0.6 y de la cobertura.
+1. **T0.5 — Reglas de publicación** (sin VPN). Ya están los dos insumos: cobertura
+   (`data/audit/cobertura.json`) y país del club (`clubes.pais`). Umbrales por defecto:
+   15 PJ para figurar, 30 para "provisorio", 5 para interino en subidas/bajadas,
+   365 días para "activo", 90 % de cobertura en los últimos 3 años.
    La aprobación del usuario es solo sobre los umbrales (90 % de cobertura en los
    últimos 3 años), no sobre el código: medido con los datos actuales, 1.272 de 1.364
    DTs activos pasan la regla y todas las ligas argentinas están en 1,00.
-3. **T1.2 / T1.4 / T1.1** (sin VPN) se pueden adelantar: parametrizar el ELO, arreglar
+2. **T1.2 / T1.4 / T1.1** (sin VPN) se pueden adelantar: parametrizar el ELO, arreglar
    el K de eliminatorias y armar el backtest no dependen de la cobertura.
 
 ## Comandos útiles para retomar

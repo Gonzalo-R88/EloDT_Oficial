@@ -1,8 +1,18 @@
 from dataclasses import asdict
 
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+
+from models import Base, Club
 from scraping.competitions import get_competition
-from scraping.dto import Fixture, MatchReport
-from scraping.pipeline import build_schedule_url, load_normalized, season_is_aligned
+from scraping.dto import Fixture, MatchReport, NormalizedMatch
+from scraping.pipeline import (
+    PAIS_DESCONOCIDO,
+    build_schedule_url,
+    load_normalized,
+    persist_matches,
+    season_is_aligned,
+)
 from scraping.storage import RawStore
 
 
@@ -65,9 +75,82 @@ def test_load_normalized_usa_la_fecha_del_fixture_si_el_reporte_no_la_tiene(tmp_
     assert partidos[0].date == "2005-05-03"
 
 
+def _partido_normalizado(competicion, fecha, local_tm, visita_tm, match_id):
+    return NormalizedMatch(
+        tm_match_id=match_id, competition_code=competicion, date=fecha, factor_k=20,
+        home_club_tm_id=local_tm, home_club_name=f"Club {local_tm}",
+        away_club_tm_id=visita_tm, away_club_name=f"Club {visita_tm}",
+        home_goals=1, away_goals=0,
+        home_coach_tm_id=100 + match_id, home_coach_name=f"DT {100 + match_id}",
+        away_coach_tm_id=200 + match_id, away_coach_name=f"DT {200 + match_id}",
+        marcador_pre_cambios_local=None, marcador_pre_cambios_visita=None,
+        impacto_banco_local=0, impacto_banco_visita=0,
+    )
+
+
+def test_persist_matches_no_usa_conmebol_como_pais_de_club():
+    """Un club que aparece primero en la Libertadores no queda con país "Conmebol"."""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+
+    persist_matches([_partido_normalizado("CLI", "2024-04-04", 9001, 9002, 1)], session=session)
+
+    paises = {
+        club.transfermarkt_id: club.pais
+        for club in session.execute(select(Club)).scalars()
+    }
+    assert paises == {9001: PAIS_DESCONOCIDO, 9002: PAIS_DESCONOCIDO}
+    session.close()
+
+
+def test_persist_matches_corrige_el_pais_cuando_juega_una_liga():
+    """Cuando ese club juega después una liga doméstica, se le pone el país de la liga."""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+
+    persist_matches([_partido_normalizado("CLI", "2024-04-04", 9101, 9102, 2)], session=session)
+    persist_matches([_partido_normalizado("AR1N", "2024-05-11", 9101, 9102, 3)], session=session)
+
+    paises = {
+        club.transfermarkt_id: club.pais
+        for club in session.execute(select(Club)).scalars()
+    }
+    assert paises == {9101: "Argentina", 9102: "Argentina"}
+    session.close()
+
+
 def test_season_alignment_accepts_european_and_calendar_years():
     assert season_is_aligned([_fixture("2024-08-11"), _fixture("2025-05-20")], 2024)
     assert season_is_aligned([_fixture("2024-02-10"), _fixture("2024-11-30")], 2024)
+
+
+def test_ensure_competition_sincroniza_metadatos_del_catalogo():
+    """Si el catálogo cambia nombre/país/tipo, la carga lo refleja (sin tocar el ELO)."""
+    from decimal import Decimal
+
+    from models import Competition
+    from scraping.pipeline import ensure_competition
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    session.add(
+        Competition(
+            codigo="RESU", nombre="Recopa Sudamericana", pais="Conmebol",
+            tipo="internacional", nivel="B", coeficiente=Decimal("0.80"),
+        )
+    )
+    session.commit()
+
+    competition = ensure_competition(session, get_competition("RESU"))
+
+    assert competition.nombre == "Relegation Superettan (playoffs)"
+    assert competition.pais == "Suecia"
+    assert competition.tipo == "copa"
+    assert competition.coeficiente == Decimal("0.80")  # el ELO no se toca
+    session.close()
 
 
 def test_season_alignment_accepts_split_season_requested_by_start_year():
