@@ -180,7 +180,27 @@
     **Brier 0,1638** (constante 0,1782). Primeras señales: `hfa=55` baja a 0,1624;
     `mov amortiguado` a 0,1629; ambos juntos a **0,1616** (log-loss 1,0370 vs 1,0441).
     Esas señales se confirman o descartan en T1.5. **113 tests verdes.**
-15. **T1.5 + T1.7 — modelo ELO v2 adoptado (2026-10-29).** Búsqueda de parámetros con
+15. **Selecciones nacionales (2026-10-29, pedido del usuario).** La base sólo tenía
+    clubes: un DT que dirigía una selección aparecía como "sin trabajo" (Ancelotti,
+    que dirigió Brasil hasta el Mundial 2026, figuraba inactivo desde mayo de 2025).
+    - Migración **003**: `competencias.tipo` admite `'selecciones'` y `clubes.tipo`
+      distingue `'club'`/`'seleccion'`. Ya aplicada en la base.
+    - `publicacion.py`: un DT de selección no compite en el ranking de clubes y **no**
+      es "sin trabajo" (`en_seleccion=True`).
+    - Catálogo: FIWC, COPA, EURO, AFCN, AFAC, GOCU, **UNLA/UNLB/UNLC/UNLD/UNFI**
+      (Nations League) y las eliminatorias (WMQ1-4, WMQ6, POWM, EMQ, AFCQ, ACQU, GCQU).
+    - **El `saison_id` de estas competencias no sigue una regla fija** (Copa Oro 2023
+      vive en 2022, Asiática 2024 en 2022, Euro 2024 en 2023, Copa América 2024 en
+      2024) y si el año no existe TM devuelve la última edición. Por eso
+      `scripts/backfill_selecciones.sh` usa `scripts/scrape_ediciones.py`, que recorre
+      los `saison_id`, deduplica y cachea cada edición bajo el año de su primer partido.
+    - **Torneos cargados:** +2.005 partidos (AFCN 491, FIWC 488, GOCU 340, EURO 246,
+      AFAC 224, COPA 216), base en **205.069 partidos / 7.082 DTs**. `validate_elo` en
+      verde. Ancelotti quedó con partidos del Mundial y `en_seleccion=True`.
+    - **Eliminatorias + Nations League: corriendo** (`backfill_eliminatorias.sh`,
+      ~9.300 partidos estimados, ~12 h, reanudable). Al terminar encadena load,
+      recompute, validate y audit.
+16. **T1.5 + T1.7 — modelo ELO v2 adoptado (2026-10-29).** Búsqueda de parámetros con
     entrenamiento 2016-2022 y validación 2023-2026 (`scripts/tune_elo.py`, CSV en
     `data/audit/tune_elo.csv`); protocolo, resultados y alternativas en
     `docs/MODELO_ELO.md`. **Decisión del usuario:** localía **45** (antes 30) y margen
@@ -192,7 +212,7 @@
     así que se conserva todo el historial. Comparación de rankings en
     `data/audit/ranking_antes_despues.md` (correlación 0,9981; los ratings bajan en
     bloque ~70-85 puntos porque la goleada amortiguada mueve menos).
-16. **T0.5 — reglas de publicación (NUEVO).** `publicacion.py` (**nuevo**) es la única
+17. **T0.5 — reglas de publicación (NUEVO).** `publicacion.py` (**nuevo**) es la única
     fuente de verdad de "esto se publica": `es_publicable(dt)` / `estado_publicacion()`
     combinan (1) mínimo de partidos (15; 5 para interinos), (2) actividad (jugó en los
     últimos 365 días), (3) la liga doméstica del club actual y (4) su cobertura
@@ -221,13 +241,13 @@
     (Bolivia 15, Ecuador 14, Argentina 72 clubes), 430 sin trabajo, y ya no hay
     excluidos por cobertura. La auditoría sigue mostrando la cobertura **por
     competencia** (para ver huecos reales de TM).
-17. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
+18. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.
     Backfill 2003-2026: **39 partidos** cargados. Base: **195.338 partidos**,
     **6.734 DTs**, `validate_elo.py` en verde, conflictos de fecha 25.
     Faltan en TM las ediciones 2007, 2009 y 2010 (ratio 0 en la auditoría).
-18. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+19. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
     distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
     (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
     (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
@@ -240,7 +260,7 @@
     **6.732 DTs** (+3.368 partidos), `validate_elo.py` en verde, conflictos de
     fecha sin cambios (25). Cobertura argentina 2017-2020 recuperada (0,98-1,00)
     y 2025-26 nueva (0,99-1,00). 62 tests verdes.
-19. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+20. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
     **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
     de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
     de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas
