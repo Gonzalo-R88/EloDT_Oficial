@@ -1,12 +1,18 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-10-27.
+Última actualización: 2026-10-29.
 
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.
-> Se ejecuta **una tarea por sesión**, marcando la casilla en el índice. La sesión
-> 2026-10-27 completó **T0.1** y **T0.2**; sigue **T0.3** (bug de fechas, requiere VPN).
+> Se ejecuta **una tarea por sesión**, marcando la casilla en el índice.
+> Hechas: **T0.1, T0.2, T0.3, T0.4, T0.6** (+ la Recopa y la recuperación de partidos sin
+> DT, que no estaban en el plan). **Siguiente: T0.5** (regla de "qué es publicable"), sin
+> VPN: ya tiene sus dos insumos (cobertura y país de clubes).
 > Los pendientes del usuario viven en `docs/plan/PENDIENTES.md`.
+>
+> **Estado de la base (2026-10-29):** 203.064 partidos, 6.806 DTs, 55 competencias,
+> 2000-05-04 a 2026-10-27. `validate_elo.py` en verde; 32 conflictos de fecha
+> (rarezas de TM). 73 tests verdes. Último commit: ver `scripts/gitw.sh log`.
 
 > **SCRAPING TOTAL COMPLETADO (2026-10-27).** Las 51 competencias quedaron
 > backfilleadas 2000-2026 y cargadas a la DB (`validate_elo.py`):
@@ -330,9 +336,9 @@
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
 1. **T0.5 — Reglas de publicación** (sin VPN). Ya están los dos insumos: cobertura
-   (`data/audit/cobertura.json`) y país del club (`clubes.pais`). Umbrales por defecto:
-   15 PJ para figurar, 30 para "provisorio", 5 para interino en subidas/bajadas,
-   365 días para "activo", 90 % de cobertura en los últimos 3 años.
+   (`data/audit/cobertura.json`, regenerado el 28-oct) y país del club (`clubes.pais`).
+   Umbrales por defecto: 15 PJ para figurar, 30 para "provisorio", 5 para interino en
+   subidas/bajadas, 365 días para "activo", 90 % de cobertura en los últimos 3 años.
    La aprobación del usuario es solo sobre los umbrales (90 % de cobertura en los
    últimos 3 años), no sobre el código: medido con los datos actuales, 1.272 de 1.364
    DTs activos pasan la regla y todas las ligas argentinas están en 1,00.
@@ -342,13 +348,21 @@ Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 ## Comandos útiles para retomar
 
 ```bash
-python3 -m pytest -q                                  # 36 tests (pytest.ini: testpaths=tests)
+python3 -m pytest -q                                  # 73 tests (pytest.ini: testpaths=tests)
 python3 scripts/validate_elo.py --min-partidos 20 --top 12
+python3 scripts/audit_data.py                         # cobertura + conflictos (sin VPN, ~15 s)
 python3 scripts/power_ranking.py --top 6              # PNG en data/output/
 python3 scripts/duelo_pizarras.py --dt-a Gallardo --dt-b Costas
 python3 scraper_transfermarkt.py coverage --competition AR1N --season 2024
 python3 scraper_transfermarkt.py recompute            # solo si se cambia la fórmula/coef.
-tmux new -d -s aep-resto 'bash scripts/backfill_resto.sh'   # reanudar el resto (con VPN)
+bash scripts/backup_db.sh --verify                    # respaldo + prueba de restauración
+bash scripts/gitw.sh log --oneline | head             # git de Windows (el de WSL no sirve en /mnt/f)
+
+# Con VPN - todo en tmux y reanudable:
+bash scripts/backfill_argentina.sh                    # AR 2017-2020 + ARG1/ARGC 2025-26
+bash scripts/backfill_dts.sh                          # recuperar partidos sin DT (2012-2026)
+python3 scripts/refetch_reportes.py --sin-dt --codes RECO --apply
+python3 scripts/fix_fechas.py --bloques --apply       # corregir fechas desde el reporte
 ```
 
 > **Scraping: requiere VPN activa + Chromium.** Con la IP de casa (ARSAT) hay
