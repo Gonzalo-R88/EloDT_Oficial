@@ -49,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--top", type=int, default=10, help="Cuántos listar (default 10).")
     parser.add_argument("--dt", type=int, default=None, help="Detalle de un DT por dt_id.")
     parser.add_argument("--motivos", action="store_true", help="Resumen de motivos de exclusión.")
+    parser.add_argument("--sin-trabajo", action="store_true",
+                        help="Listar DTs que dirigieron en el último año pero hoy no tienen club.")
     parser.add_argument("--hoy", type=date.fromisoformat, default=date.today(),
                         help="Fecha de referencia (default: hoy).")
     args = parser.parse_args(argv)
@@ -74,9 +76,20 @@ def main(argv: list[str] | None = None) -> int:
 
         publicables = {dt for dt, e in estados.items() if e.publicable}
         print(f"DTs evaluados: {len(estados)}")
-        print(f"  publicables: {len(publicables)}")
+        print(f"  publicables (DT actual de un club): {len(publicables)}")
         print(f"  provisorios (15-29 PJ): {sum(1 for e in estados.values() if e.publicable and e.etiqueta)}")
         print(f"  interinos (sólo subidas y bajadas): {sum(1 for e in estados.values() if e.interino)}")
+        print(f"  sin trabajo (dirigieron en el último año): {sum(1 for e in estados.values() if e.sin_trabajo)}")
+
+        if args.sin_trabajo:
+            candidatos = [dt for dt, e in estados.items() if e.sin_trabajo]
+            consulta = _CONSULTA.format(where="where e.dt_id = any(:ids)") + f" limit {args.top}"
+            print(f"\nTop {args.top} sin trabajo (por ELO):")
+            for _, nombre, elo, pj, club, pais in session.execute(
+                text(consulta), {"ids": candidatos}
+            ):
+                print(f"  {elo:7.1f}  {nombre[:30]:30} {pj:4} PJ  último club: {club[:24]}")
+            return 0
 
         if args.motivos:
             print("\nExcluidos por motivo:")

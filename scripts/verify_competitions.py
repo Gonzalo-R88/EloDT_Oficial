@@ -107,12 +107,29 @@ def main(argv: list[str] | None = None) -> None:
     else:
         candidates = CATALOG
 
+    # Con VPN, TM responde el challenge JS de AWS WAF: sin el solver no se puede
+    # verificar nada (el cliente reintenta y termina en "challenge AWS WAF").
+    waf_solver = None
+    if settings.waf_solver:
+        from scraping.waf import WafChallengeSolver
+
+        waf_solver = WafChallengeSolver(
+            domain=settings.transfermarkt_domain,
+            headless=settings.waf_headless,
+            wait_seconds=settings.waf_wait_seconds,
+        )
     client = TransfermarktClient(
         delay_min=settings.request_delay_min,
         delay_max=settings.request_delay_max,
         max_retries=settings.max_retries,
         timeout=settings.request_timeout,
+        blocked_wait=settings.blocked_wait,
+        blocked_retries=settings.blocked_retries,
+        impersonate=settings.impersonate,
+        domain=settings.transfermarkt_domain,
+        waf_solver=waf_solver,
     )
+    client.warm_up()
 
     print(f"{'CÓD':7} {'ESTADO':8} {'FIXTURES':>9}  {'EST.':>6}  DETALLE")
     print("-" * 70)

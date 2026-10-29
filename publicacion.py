@@ -47,6 +47,7 @@ MOTIVO_INACTIVO = "inactivo"
 MOTIVO_SIN_LIGA = "sin_liga_domestica"
 MOTIVO_COBERTURA = "cobertura_baja"
 MOTIVO_SIN_FECHAS = "sin_partidos"
+MOTIVO_SIN_CLUB = "sin_club_actual"
 
 _cobertura_cache: tuple[float, dict] | None = None
 
@@ -64,6 +65,13 @@ class Elegibilidad:
     ultima_fecha: Optional[date] = None
     liga: Optional[str] = None
     cobertura: Optional[float] = None
+    # DT actual de algún club (ver `dt_actual_por_club`). Los rankings se arman por
+    # club, así que sólo entra quien hoy está en un banco.
+    es_vigente: bool = False
+    club_actual: Optional[int] = None
+    # Dirigió en el último año pero hoy no es el DT de ningún club: candidato al
+    # ranking de "técnicos sin trabajo".
+    sin_trabajo: bool = False
 
     @property
     def en_movimientos(self) -> bool:
@@ -165,7 +173,35 @@ def ligas_domesticas(session: Session, desde: date) -> dict[int, str]:
 # ---------------------------------------------------------------------------
 # Estado de publicación
 # ---------------------------------------------------------------------------
-def _datos_por_dt(session: Session, desde: date) -> dict[int, dict]:
+def dt_actual_por_club(session: Session) -> dict[int, dict]:
+    """`club_id -> {"dt_id", "fecha"}` del técnico del partido más reciente del club.
+
+    Es la definición operativa de "DT actual": quien dirigió el último partido del
+    club. Evita publicar rankings con técnicos que ya no están (el club cambió de DT).
+    """
+    partidos = _participaciones()
+    maxima = (
+        select(partidos.c.club_id.label("club_id"), func.max(partidos.c.fecha).label("fecha"))
+        .group_by(partidos.c.club_id)
+        .subquery()
+    )
+    filas = session.execute(
+        select(partidos.c.club_id, partidos.c.dt_id, partidos.c.fecha).join(
+            maxima,
+            and_(
+                partidos.c.club_id == maxima.c.club_id,
+                partidos.c.fecha == maxima.c.fecha,
+            ),
+        )
+    ).all()
+
+    vigentes: dict[int, dict] = {}
+    for club_id, dt_id, fecha in filas:
+        vigentes.setdefault(club_id, {"dt_id": dt_id, "fecha": fecha})
+    return vigentes
+
+
+def _datos_por_dt(session: Session) -> dict[int, dict]:
     """`dt_id -> {pj, ultima_fecha, club_id}` a partir de `partidos_dt`."""
     partidos = _participaciones()
 
@@ -209,7 +245,12 @@ def estado_publicacion(
     referencia = hasta or date.today()
     desde_ligas = referencia - timedelta(days=365 * settings.cobertura_anios)
     ligas = ligas_domesticas(session, desde_ligas)
-    por_dt = _datos_por_dt(session, desde_ligas)
+    por_dt = _datos_por_dt(session)
+
+    # dt_id -> club del que es técnico actual (si es el de algún club).
+    club_del_dt: dict[int, int] = {}
+    for club_id, info in dt_actual_por_club(session).items():
+        club_del_dt.setdefault(info["dt_id"], club_id)
 
     objetivo = set(dt_ids) if dt_ids is not None else set(por_dt)
     estados: dict[int, Elegibilidad] = {}
@@ -225,6 +266,7 @@ def estado_publicacion(
         club_id = datos["club_id"]
         liga = ligas.get(club_id)
         cobertura = cobertura_liga(liga, referencia, ruta=ruta_cobertura) if liga else None
+        es_vigente = dt_id in club_del_dt
 
         base = {
             "dt_id": dt_id,
@@ -232,6 +274,8 @@ def estado_publicacion(
             "ultima_fecha": ultima,
             "liga": liga,
             "cobertura": cobertura,
+            "es_vigente": es_vigente,
+            "club_actual": club_del_dt.get(dt_id),
         }
 
         if pj_total < settings.interino_min_pj:
@@ -239,9 +283,14 @@ def estado_publicacion(
                 publicable=False, motivo=MOTIVO_POCOS_PARTIDOS, **base
             )
             continue
-        if ultima is None or (referencia - ultima).days > settings.activo_dias:
+
+        reciente = ultima is not None and (referencia - ultima).days <= settings.activo_dias
+        # "Inactivo" se evalúa antes que la liga: un DT que dejó de dirigir hace años
+        # no debe figurar como "sin liga doméstica" (el motivo tiene que ser el real).
+        if not reciente:
             estados[dt_id] = Elegibilidad(publicable=False, motivo=MOTIVO_INACTIVO, **base)
             continue
+
         if liga is None:
             estados[dt_id] = Elegibilidad(publicable=False, motivo=MOTIVO_SIN_LIGA, **base)
             continue
@@ -249,11 +298,17 @@ def estado_publicacion(
             estados[dt_id] = Elegibilidad(publicable=False, motivo=MOTIVO_COBERTURA, **base)
             continue
 
+        if not es_vigente:
+            # Dirigió hace poco pero hoy no está en ningún banco: no va al ranking de
+            # clubes; queda como candidato al ranking de "sin trabajo".
+            estados[dt_id] = Elegibilidad(
+                publicable=False, sin_trabajo=True, motivo=MOTIVO_SIN_CLUB, **base
+            )
+            continue
+
         if pj_total >= settings.ranking_min_pj:
             etiqueta = None if pj_total >= settings.provisorio_pj else ETIQUETA_PROVISORIO
-            estados[dt_id] = Elegibilidad(
-                publicable=True, etiqueta=etiqueta, **base
-            )
+            estados[dt_id] = Elegibilidad(publicable=True, etiqueta=etiqueta, **base)
         else:
             estados[dt_id] = Elegibilidad(
                 publicable=False, interino=True, etiqueta=ETIQUETA_INTERINO, **base
@@ -272,3 +327,72 @@ def es_publicable(
     return estado_publicacion(
         session, hasta=hasta, dt_ids=[dt_id], ruta_cobertura=ruta_cobertura
     )[dt_id]
+
+
+@dataclass(frozen=True)
+class EntradaClub:
+    """Un club con su técnico actual, listo para un ranking."""
+
+    club_id: int
+    club: str
+    pais: Optional[str]
+    dt_id: int
+    dt: str
+    elo: float
+    pj: int
+    etiqueta: Optional[str]
+    liga: Optional[str]
+    ultima_fecha: Optional[date]
+
+
+def ranking_por_club(
+    session: Session,
+    hasta: Optional[date] = None,
+    pais: Optional[str] = None,
+    ruta_cobertura: Optional[Path] = None,
+) -> list[EntradaClub]:
+    """Ranking por club: **una fila por club, con su técnico actual**.
+
+    Es la forma correcta de listar "los mejores DTs de un país": si un club cambió de
+    entrenador, aparece sólo el actual; el anterior queda afuera (puede ir al ranking
+    de técnicos sin trabajo). Ordenado por ELO descendente.
+    """
+    from models import Club, Coach
+
+    estados = estado_publicacion(session, hasta=hasta, ruta_cobertura=ruta_cobertura)
+    vigentes = dt_actual_por_club(session)
+
+    info_clubes = {}
+    for club in session.execute(select(Club)).scalars():
+        info_clubes[club.club_id] = (club.nombre, club.pais)
+    info_dts = {}
+    for coach in session.execute(select(Coach)).scalars():
+        info_dts[coach.dt_id] = (f"{coach.nombre} {coach.apellido}".strip(), float(coach.elo_actual))
+
+    entradas: list[EntradaClub] = []
+    for club_id, info in vigentes.items():
+        dt_id = info["dt_id"]
+        estado = estados.get(dt_id)
+        if estado is None or not estado.publicable:
+            continue
+        club_nombre, club_pais = info_clubes.get(club_id, (None, None))
+        if pais and club_pais != pais:
+            continue
+        dt_nombre, elo = info_dts.get(dt_id, (None, None))
+        entradas.append(
+            EntradaClub(
+                club_id=club_id,
+                club=club_nombre,
+                pais=club_pais,
+                dt_id=dt_id,
+                dt=dt_nombre,
+                elo=elo,
+                pj=estado.pj_total,
+                etiqueta=estado.etiqueta,
+                liga=estado.liga,
+                ultima_fecha=estado.ultima_fecha,
+            )
+        )
+
+    entradas.sort(key=lambda entrada: (-(entrada.elo or 0), entrada.dt or ""))
+    return entradas

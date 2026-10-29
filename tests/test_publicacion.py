@@ -17,11 +17,14 @@ from publicacion import (
     MOTIVO_COBERTURA,
     MOTIVO_INACTIVO,
     MOTIVO_POCOS_PARTIDOS,
+    MOTIVO_SIN_CLUB,
     MOTIVO_SIN_LIGA,
     cobertura_liga,
+    dt_actual_por_club,
     es_publicable,
     estado_publicacion,
     ligas_domesticas,
+    ranking_por_club,
 )
 
 HOY = date(2026, 6, 1)
@@ -59,12 +62,20 @@ def db():
     session.add_all([comp_ok, comp_baja, comp_vacia, comp_int])
     session.commit()
 
-    club_ok = Club(transfermarkt_id=1, nombre="Club AR", pais="Argentina")
-    club_baja = Club(transfermarkt_id=2, nombre="Club BO", pais="Bolivia")
-    club_vacio = Club(transfermarkt_id=3, nombre="Club VZ", pais="Venezuela")
-    club_int = Club(transfermarkt_id=4, nombre="Club Inter", pais="desconocido")
+    # Un club por entrenador (como en la realidad: el DT actual es el del último
+    # partido de SU club).
+    club_30 = Club(transfermarkt_id=1, nombre="Club Treinta", pais="Argentina")
+    club_20 = Club(transfermarkt_id=2, nombre="Club Veinte", pais="Argentina")
+    club_14 = Club(transfermarkt_id=3, nombre="Club Catorce", pais="Argentina")
+    club_3 = Club(transfermarkt_id=5, nombre="Club Tres", pais="Argentina")
+    club_baja = Club(transfermarkt_id=6, nombre="Club BO", pais="Bolivia")
+    club_vacio = Club(transfermarkt_id=7, nombre="Club VZ", pais="Venezuela")
+    club_int = Club(transfermarkt_id=8, nombre="Club Inter", pais="desconocido")
+    club_rotacion = Club(transfermarkt_id=10, nombre="Club Rotación", pais="Argentina")
+    club_inactivo = Club(transfermarkt_id=11, nombre="Club Inactivo", pais="Argentina")
     filler = Club(transfermarkt_id=9, nombre="Rival", pais="Argentina")
-    session.add_all([club_ok, club_baja, club_vacio, club_int, filler])
+    session.add_all([club_30, club_20, club_14, club_3, club_baja, club_vacio,
+                     club_int, club_rotacion, club_inactivo, filler])
     session.commit()
 
     def entrenador(tm_id, apellido):
@@ -78,8 +89,11 @@ def db():
     dt_vacio = entrenador(41, "Venezuela")
     dt_int = entrenador(42, "Internacional")
     dt_inactivo = entrenador(43, "Inactivo")
+    dt_despedido = entrenador(44, "Despedido")
+    dt_nuevo = entrenador(45, "Nuevo")
     relleno = entrenador(99, "Relleno")
-    session.add_all([dt30, dt20, dt14, dt3, dt_baja, dt_vacio, dt_int, dt_inactivo, relleno])
+    session.add_all([dt30, dt20, dt14, dt3, dt_baja, dt_vacio, dt_int, dt_inactivo,
+                     dt_despedido, dt_nuevo, relleno])
     session.commit()
 
     siguiente = {"id": 1}
@@ -104,20 +118,25 @@ def db():
             )
             siguiente["id"] += 1
 
-    serie(dt30, club_ok, comp_ok, 30, HOY - timedelta(days=5))
-    serie(dt20, club_ok, comp_ok, 20, HOY - timedelta(days=10))
-    serie(dt14, club_ok, comp_ok, 14, HOY - timedelta(days=12))
-    serie(dt3, club_ok, comp_ok, 3, HOY - timedelta(days=15))
+    serie(dt30, club_30, comp_ok, 30, HOY - timedelta(days=5))
+    serie(dt20, club_20, comp_ok, 20, HOY - timedelta(days=10))
+    serie(dt14, club_14, comp_ok, 14, HOY - timedelta(days=12))
+    serie(dt3, club_3, comp_ok, 3, HOY - timedelta(days=15))
     serie(dt_baja, club_baja, comp_baja, 30, HOY - timedelta(days=20))
     serie(dt_vacio, club_vacio, comp_vacia, 30, HOY - timedelta(days=25))
     serie(dt_int, club_int, comp_int, 30, HOY - timedelta(days=30))
-    serie(dt_inactivo, club_ok, comp_ok, 30, HOY - timedelta(days=settings.activo_dias + 40))
+    serie(dt_inactivo, club_inactivo, comp_ok, 30, HOY - timedelta(days=settings.activo_dias + 40))
+    # Rotación en un mismo club: "despedido" dirigió hasta hace 40 días y luego
+    # asumió "nuevo" (último partido hace 5 días).
+    serie(dt_despedido, club_rotacion, comp_ok, 20, HOY - timedelta(days=40))
+    serie(dt_nuevo, club_rotacion, comp_ok, 6, HOY - timedelta(days=5))
     session.commit()
 
     ids = {
         "dt30": dt30.dt_id, "dt20": dt20.dt_id, "dt14": dt14.dt_id, "dt3": dt3.dt_id,
         "dt_baja": dt_baja.dt_id, "dt_vacio": dt_vacio.dt_id, "dt_int": dt_int.dt_id,
-        "dt_inactivo": dt_inactivo.dt_id,
+        "dt_inactivo": dt_inactivo.dt_id, "dt_despedido": dt_despedido.dt_id,
+        "dt_nuevo": dt_nuevo.dt_id,
     }
     yield session, ids
     session.close()
@@ -244,6 +263,56 @@ def test_estado_publicacion_evalua_a_todos(db, cobertura):
     assert ids["dt20"] in publicables
     assert ids["dt14"] not in publicables
     assert ids["dt_inactivo"] not in publicables
+
+
+# ---------------------------------------------------------------------------
+# Técnico actual del club
+# ---------------------------------------------------------------------------
+def test_dt_actual_por_club_es_el_del_ultimo_partido(db):
+    session, ids = db
+    vigentes = dt_actual_por_club(session)
+
+    valores = {info["dt_id"] for info in vigentes.values()}
+    assert ids["dt30"] in valores
+    # En el club con rotación, el actual es el que dirigió el último partido.
+    assert ids["dt_nuevo"] in valores
+    assert ids["dt_despedido"] not in valores
+
+
+def test_dt_que_ya_no_dirige_su_club_no_es_publicable(db, cobertura):
+    """El DT saliente sigue en el ELO, pero no en el ranking del club."""
+    session, ids = db
+    estado = es_publicable(session, ids["dt_despedido"], hasta=HOY, ruta_cobertura=cobertura)
+
+    assert estado.es_vigente is False
+    assert estado.publicable is False
+    assert estado.sin_trabajo is True
+    assert estado.motivo == MOTIVO_SIN_CLUB
+
+
+def test_el_dt_nuevo_del_club_es_el_publicable(db, cobertura):
+    session, ids = db
+    estado = es_publicable(session, ids["dt_nuevo"], hasta=HOY, ruta_cobertura=cobertura)
+
+    assert estado.es_vigente is True
+    # 6 partidos: entra como interino, no como publicable.
+    assert estado.publicable is False
+    assert estado.interino is True
+
+
+def test_ranking_por_club_muestra_un_solo_dt_por_club(db, cobertura):
+    """En un club con cambio de DT, el ranking lista sólo al actual."""
+    session, ids = db
+    ranking = ranking_por_club(session, hasta=HOY, ruta_cobertura=cobertura)
+
+    clubs = [entrada.club_id for entrada in ranking]
+    assert len(clubs) == len(set(clubs)), "un DT por club"
+    dts = {entrada.dt_id for entrada in ranking}
+    assert ids["dt_nuevo"] not in dts  # interino, no va al ranking
+    assert ids["dt_despedido"] not in dts
+    assert ids["dt30"] in dts
+    # Ordenado por ELO descendente.
+    assert [e.elo for e in ranking] == sorted((e.elo for e in ranking), reverse=True)
 
 
 def test_estado_publicacion_sin_cobertura_no_publica_nada(db, tmp_path):

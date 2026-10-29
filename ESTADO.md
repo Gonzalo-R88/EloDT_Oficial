@@ -174,10 +174,20 @@
     `COBERTURA_MIN`, `COBERTURA_ANIOS`, `COBERTURA_JSON`). `scripts/publicables.py`
     (**nuevo**) muestra quién entra y por qué no. `tests/test_publicacion.py` (**14
     tests**, 87 en total).
-    **Números reales (2026-10-29):** 6.806 DTs evaluados, **1.048 publicables** (104
-    provisorios), 146 interinos. Excluidos: 3.736 inactivos, 1.804 con pocos partidos,
-    67 por cobertura baja (BO1A y EC1N al 67 %, COL1 al 99 %), 5 sin liga doméstica.
-    Ligas argentinas 0,997-1,00 → **105 publicables con club argentino**.
+    **Corrección del mismo día (pedido del usuario):** el ranking se arma **por club
+    y con su DT actual**, no por DT suelto. `dt_actual_por_club()` define "DT actual"
+    como el técnico del último partido del club; `ranking_por_club()` devuelve una fila
+    por club. Así no aparecen técnicos desactualizados (Quinteros en Independiente,
+    Gallardo en River) ni dos DTs del mismo club (Boca mostraba a Arruabarrena y
+    Úbeda). Los DT que dirigieron en el último año pero hoy no tienen club quedan
+    marcados `sin_trabajo` (398) para el futuro ranking de técnicos libres.
+    **Números reales (2026-10-29):** 6.806 DTs evaluados, **715 publicables** (56
+    provisorios), 81 interinos, 398 sin trabajo. Excluidos: 3.736 inactivos, 1.804 con
+    pocos partidos, 398 sin club actual, 67 por cobertura baja, 5 sin liga doméstica.
+    **Cobertura baja:** BO1A y EC1N no es que se hayan descartado partidos: esas
+    temporadas **no existen en TM bajo esos códigos** (BO1A 2024 y EC1N 2022-2024
+    devuelven la temporada actual). Bolivia parece un artefacto de tener Apertura y
+    Clausura como competencias separadas (BO1C 2024 sí está al 96 %).
 15. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.
