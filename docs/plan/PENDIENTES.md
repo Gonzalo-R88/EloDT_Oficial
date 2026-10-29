@@ -43,13 +43,19 @@ opciones, escribila debajo de la línea para que quede el registro.
 
 ## 2. Decisiones (aprobar)
 
-- [ ] **Umbral de cobertura para publicar** — ya implementado con los valores por defecto (T0.5, 2026-10-29); podés pedir cambios cuando quieras, se ajustan sin rehacer nada.
-  - Regla vigente: un DT es publicable si jugó en el último año, tiene 15+ partidos y su
-    liga tiene 90 % o más de cobertura en los últimos 3 años.
-  - Con los datos de hoy: **1.048 publicables** de 6.806 DTs; 105 con club argentino.
-    Quedan afuera 3.736 inactivos, 1.804 con pocos partidos, 67 de ligas con datos
-    incompletos (Bolivia y Ecuador) y 5 sin liga doméstica.
-  - Para verlo: `python3 scripts/publicables.py --pais Argentina --motivos`.
+- [ ] **Cómo medir la cobertura de una liga** — T0.5 quedó con la regla estricta; hay dos alternativas si querés que Bolivia y Ecuador entren.
+  - Regla vigente: un DT es publicable si es el **DT actual de un club**, jugó en el
+    último año, tiene 15+ partidos y su liga tiene 90 % o más de cobertura en los
+    últimos 3 años.
+  - Hoy: **715 publicables** de 6.806 DTs; 398 "sin trabajo"; quedan afuera 3.736
+    inactivos, 1.804 con pocos partidos y 67 de ligas incompletas.
+  - Por qué quedan afuera Bolivia y Ecuador: no se perdieron partidos, esas temporadas
+    **no existen en Transfermarkt** con esos códigos (BO1A 2024 y EC1N 2022-2024
+    devuelven la temporada actual). En Bolivia además Apertura y Clausura son
+    competencias separadas, así que cada una tiene años en cero.
+  - Opciones: (a) dejarlo así; (b) promediar todas las ligas del mismo país (arregla
+    Bolivia, Ecuador sigue afuera); (c) mirar sólo los últimos 2 años (entran las dos).
+  - Para verlo: `python3 scripts/publicables.py --motivos` y `--sin-trabajo`.
 
 - [ ] **Cobertura de Argentina** — **T0.4 terminó el 2026-10-28** (queda tu comentario).
   - Resultado (detalle en `docs/ARGENTINA_COBERTURA.md`): Primera 2017-2020 recuperada
