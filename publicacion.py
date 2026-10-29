@@ -99,32 +99,70 @@ def cargar_cobertura(ruta: Optional[Path] = None) -> dict:
     return datos
 
 
+def codigos_del_mismo_pais(codigo: str) -> list[str]:
+    """El código y todas las ligas del mismo país según el catálogo.
+
+    Muchos países tienen la liga partida en dos competencias (Apertura y Clausura:
+    ARG1/ARGC, BO1A/BO1C, TDeA/TDeC, PR1A/PR1C, VZ1A/VZ1C...). Medir la cobertura de
+    una sola hace que cada una parezca vacía en los años en que no se jugó, aunque
+    los datos del país estén completos.
+    """
+    try:
+        from scraping.competitions import COMPETITIONS
+    except ImportError:  # pragma: no cover - sólo si falta el paquete
+        return [codigo]
+
+    configuracion = COMPETITIONS.get(codigo)
+    if configuracion is None or not configuracion.country:
+        return [codigo]
+    del_pais = {
+        otro
+        for otro, datos in COMPETITIONS.items()
+        if datos.country == configuracion.country and datos.kind == "liga"
+    }
+    del_pais.add(codigo)
+    return sorted(del_pais)
+
+
 def cobertura_liga(
     codigo: str,
     hasta: date,
     anios: Optional[int] = None,
     ruta: Optional[Path] = None,
+    agrupar_por_pais: bool = True,
 ) -> Optional[float]:
-    """Cobertura promedio de una competencia en los últimos `anios` años calendario.
+    """Cobertura del fútbol de liga de un país en los últimos `anios` años.
 
-    Devuelve `None` si la competencia no tiene ningún año con datos en la ventana
-    (no se puede afirmar nada). Los años fuera de la vida de la competencia
-    (`first_season`/`last_season`) no cuentan: `cobertura.json` ya los omite.
+    Por defecto suma todas las ligas del mismo país (ponderando por cantidad de
+    partidos, así una liga de 380 partidos pesa más que una de 240). Con
+    `agrupar_por_pais=False` mide sólo esa competencia, útil para diagnosticar.
+
+    Devuelve `None` si no hay ningún partido en la ventana (no se puede afirmar nada).
+    Los años fuera de la vida de la competencia (`first_season`/`last_season`) no
+    cuentan: `cobertura.json` ya los omite.
     """
     datos = cargar_cobertura(ruta)
-    por_anio = datos.get(codigo)
-    if not por_anio:
-        return None
+    codigos = codigos_del_mismo_pais(codigo) if agrupar_por_pais else [codigo]
     cantidad = anios or settings.cobertura_anios
     ventana = {hasta.year - desplazamiento for desplazamiento in range(cantidad)}
-    ratios = [
-        float(valores["ratio"])
-        for anio, valores in por_anio.items()
-        if int(anio) in ventana
-    ]
-    if not ratios:
+
+    fixtures = cargados = 0
+    anios_en_ventana = 0
+    for cada in codigos:
+        for anio, valores in (datos.get(cada) or {}).items():
+            if int(anio) not in ventana:
+                continue
+            anios_en_ventana += 1
+            fixtures += int(valores.get("fixtures", 0))
+            cargados += int(valores.get("cargados", 0))
+
+    if anios_en_ventana == 0:
+        # La competencia no tiene ningún año dentro de la ventana: no se puede afirmar nada.
         return None
-    return round(sum(ratios) / len(ratios), 4)
+    if fixtures == 0:
+        # Tiene años en la ventana pero ninguno con partidos: cobertura 0.
+        return 0.0
+    return round(cargados / fixtures, 4)
 
 
 # ---------------------------------------------------------------------------

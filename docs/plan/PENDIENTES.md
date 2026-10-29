@@ -43,7 +43,12 @@ opciones, escribila debajo de la línea para que quede el registro.
 
 ## 2. Decisiones (aprobar)
 
-- [ ] **Cómo medir la cobertura de una liga** — T0.5 quedó con la regla estricta; hay dos alternativas si querés que Bolivia y Ecuador entren.
+- [x] **Cómo medir la cobertura de una liga** — elegiste la opción (b): por país, sumando las ligas del mismo país (2026-10-29).
+  - Resultado: Bolivia pasa de 67 % a 98,6 % y Ecuador a 100 % (sus años existentes
+    están completos). Ahora hay 743 publicables, 15 de Bolivia y 14 de Ecuador, y ya
+    nadie queda afuera por cobertura. La auditoría sigue mostrando la cobertura por
+    competencia, para ver los huecos reales de Transfermarkt.
+  - Las otras dos opciones quedan descartadas.
   - Regla vigente: un DT es publicable si es el **DT actual de un club**, jugó en el
     último año, tiene 15+ partidos y su liga tiene 90 % o más de cobertura en los
     últimos 3 años.

@@ -186,8 +186,13 @@
     pocos partidos, 398 sin club actual, 67 por cobertura baja, 5 sin liga doméstica.
     **Cobertura baja:** BO1A y EC1N no es que se hayan descartado partidos: esas
     temporadas **no existen en TM bajo esos códigos** (BO1A 2024 y EC1N 2022-2024
-    devuelven la temporada actual). Bolivia parece un artefacto de tener Apertura y
-    Clausura como competencias separadas (BO1C 2024 sí está al 96 %).
+    devuelven la temporada actual). **Cambio del 29-oct (decisión del usuario):** la
+    cobertura ahora se mide **por país**, sumando todas las ligas (Apertura y Clausura
+    son competencias separadas) y ponderando por partidos. BO1A pasa de 0,667 a 0,986
+    y EC1N a 1,0 (sus años existentes están completos). Resultado: **743 publicables**
+    (Bolivia 15, Ecuador 14, Argentina 72 clubes), 430 sin trabajo, y ya no hay
+    excluidos por cobertura. La auditoría sigue mostrando la cobertura **por
+    competencia** (para ver huecos reales de TM).
 15. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.

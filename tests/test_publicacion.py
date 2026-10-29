@@ -19,6 +19,7 @@ from publicacion import (
     MOTIVO_POCOS_PARTIDOS,
     MOTIVO_SIN_CLUB,
     MOTIVO_SIN_LIGA,
+    codigos_del_mismo_pais,
     cobertura_liga,
     dt_actual_por_club,
     es_publicable,
@@ -151,9 +152,35 @@ def test_cobertura_liga_promedia_la_ventana(cobertura):
     assert cobertura_liga("VZ1C", HOY, ruta=cobertura) == 0.0
 
 
+def test_cobertura_liga_suma_las_ligas_del_mismo_pais(tmp_path):
+    """Apertura y Clausura son competencias separadas: se miden juntas por país."""
+    datos = {
+        # Bolivia: Apertura sólo con 2025-2026 y Clausura sólo con 2024.
+        "BO1A": {2025: {"fixtures": 240, "cargados": 240, "ratio": 1.0},
+                 2026: {"fixtures": 160, "cargados": 160, "ratio": 1.0}},
+        "BO1C": {2024: {"fixtures": 240, "cargados": 230, "ratio": 0.9583}},
+    }
+    ruta = tmp_path / "cobertura.json"
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+
+    agrupada = cobertura_liga("BO1A", HOY, ruta=ruta)
+    sola = cobertura_liga("BO1A", HOY, ruta=ruta, agrupar_por_pais=False)
+
+    assert agrupada > 0.9  # 1.0 con 230/240 del Clausura
+    assert sola == 1.0
+    # La cobertura agrupada se pondera por partidos: (240+160+230)/(240+160+240).
+    assert agrupada == round(630 / 640, 4)
+
+
+def test_codigos_del_mismo_pais_incluye_el_codigo_pedido():
+    codigos = codigos_del_mismo_pais("BO1A")
+    assert "BO1A" in codigos and "BO1C" in codigos
+
+
 def test_cobertura_liga_sin_datos_en_la_ventana_devuelve_none(cobertura):
-    # CDLP sólo tiene 2023 y la ventana es 2024-2026.
-    assert cobertura_liga("CDLP", HOY, ruta=cobertura) is None
+    # CDLP sólo tiene 2023 y la ventana es 2024-2026 (medida sola: agrupada por país
+    # tomaría las ligas argentinas, que sí tienen datos).
+    assert cobertura_liga("CDLP", HOY, ruta=cobertura, agrupar_por_pais=False) is None
     assert cobertura_liga("NOEXISTE", HOY, ruta=cobertura) is None
 
 
