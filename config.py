@@ -42,6 +42,15 @@ class Settings:
     waf_wait_seconds: float
     max_waf_solves: int
 
+    # Reglas de publicación (ver `publicacion.py`)
+    ranking_min_pj: int
+    provisorio_pj: int
+    interino_min_pj: int
+    activo_dias: int
+    cobertura_min: float
+    cobertura_anios: int
+    cobertura_json: Path
+
 
 def _get_float(name: str, default: float) -> float:
     raw = os.getenv(name)
@@ -86,6 +95,15 @@ def load_settings() -> Settings:
         waf_headless=_get_bool("TM_WAF_HEADLESS", True),
         waf_wait_seconds=_get_float("TM_WAF_WAIT", 15.0),
         max_waf_solves=_get_int("TM_WAF_SOLVES", 5),
+        ranking_min_pj=_get_int("RANKING_MIN_PJ", 15),
+        provisorio_pj=_get_int("PROVISORIO_PJ", 30),
+        interino_min_pj=_get_int("INTERINO_MIN_PJ", 5),
+        activo_dias=_get_int("ACTIVO_DIAS", 365),
+        cobertura_min=_get_float("COBERTURA_MIN", 0.90),
+        cobertura_anios=_get_int("COBERTURA_ANIOS", 3),
+        cobertura_json=Path(
+            os.getenv("COBERTURA_JSON", str(data_dir / "audit" / "cobertura.json"))
+        ),
     )
 
 

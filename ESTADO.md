@@ -5,9 +5,9 @@
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.
 > Se ejecuta **una tarea por sesión**, marcando la casilla en el índice.
-> Hechas: **T0.1, T0.2, T0.3, T0.4, T0.6** (+ la Recopa y la recuperación de partidos sin
-> DT, que no estaban en el plan). **Siguiente: T0.5** (regla de "qué es publicable"), sin
-> VPN: ya tiene sus dos insumos (cobertura y país de clubes).
+> Hechas: **T0.1, T0.2, T0.3, T0.4, T0.5, T0.6** (+ la Recopa y la recuperación de
+> partidos sin DT, que no estaban en el plan). **Siguiente: Fase 1** — T1.2
+> (`EloParams`), T1.4 (K de eliminatorias) y T1.1 (backtest), todas sin VPN.
 > Los pendientes del usuario viven en `docs/plan/PENDIENTES.md`.
 >
 > **Estado de la base (2026-10-29):** 203.064 partidos, 6.806 DTs, 55 competencias,
@@ -164,13 +164,27 @@
     conflictos de fecha subieron de 25 a **32** (todos rarezas de TM, no de parseo). `persist_matches` ganó un fast-path: saltea
     los `tm_match_id` ya cargados antes de hacer consultas por partido, así la recarga
     de una temporada entera tarda segundos.
-14. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
+14. **T0.5 — reglas de publicación (NUEVO).** `publicacion.py` (**nuevo**) es la única
+    fuente de verdad de "esto se publica": `es_publicable(dt)` / `estado_publicacion()`
+    combinan (1) mínimo de partidos (15; 5 para interinos), (2) actividad (jugó en los
+    últimos 365 días), (3) la liga doméstica del club actual y (4) su cobertura
+    (`data/audit/cobertura.json`, ≥90 % en los últimos 3 años). Etiqueta "provisorio"
+    entre 15 y 29 PJ; los interinos (5-14) sólo van a "subidas y bajadas". Umbrales en
+    `config.py` (`RANKING_MIN_PJ`, `PROVISORIO_PJ`, `INTERINO_MIN_PJ`, `ACTIVO_DIAS`,
+    `COBERTURA_MIN`, `COBERTURA_ANIOS`, `COBERTURA_JSON`). `scripts/publicables.py`
+    (**nuevo**) muestra quién entra y por qué no. `tests/test_publicacion.py` (**14
+    tests**, 87 en total).
+    **Números reales (2026-10-29):** 6.806 DTs evaluados, **1.048 publicables** (104
+    provisorios), 146 interinos. Excluidos: 3.736 inactivos, 1.804 con pocos partidos,
+    67 por cobertura baja (BO1A y EC1N al 67 %, COL1 al 99 %), 5 sin liga doméstica.
+    Ligas argentinas 0,997-1,00 → **105 publicables con club argentino**.
+15. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.
     Backfill 2003-2026: **39 partidos** cargados. Base: **195.338 partidos**,
     **6.734 DTs**, `validate_elo.py` en verde, conflictos de fecha 25.
     Faltan en TM las ediciones 2007, 2009 y 2010 (ratio 0 en la auditoría).
-15. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+16. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
     distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
     (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
     (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
@@ -183,7 +197,7 @@
     **6.732 DTs** (+3.368 partidos), `validate_elo.py` en verde, conflictos de
     fecha sin cambios (25). Cobertura argentina 2017-2020 recuperada (0,98-1,00)
     y 2025-26 nueva (0,99-1,00). 62 tests verdes.
-16. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+17. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
     **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
     de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
     de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas
@@ -335,15 +349,16 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
-1. **T0.5 — Reglas de publicación** (sin VPN). Ya están los dos insumos: cobertura
-   (`data/audit/cobertura.json`, regenerado el 28-oct) y país del club (`clubes.pais`).
-   Umbrales por defecto: 15 PJ para figurar, 30 para "provisorio", 5 para interino en
-   subidas/bajadas, 365 días para "activo", 90 % de cobertura en los últimos 3 años.
-   La aprobación del usuario es solo sobre los umbrales (90 % de cobertura en los
-   últimos 3 años), no sobre el código: medido con los datos actuales, 1.272 de 1.364
-   DTs activos pasan la regla y todas las ligas argentinas están en 1,00.
-2. **T1.2 / T1.4 / T1.1** (sin VPN) se pueden adelantar: parametrizar el ELO, arreglar
-   el K de eliminatorias y armar el backtest no dependen de la cobertura.
+Los datos y las reglas de publicación están listos. Sigue la **Fase 1 (modelo ELO v2)**,
+toda sin VPN:
+
+1. **T1.2 — `EloParams` retrocompatible.** Parametrizar HVA, K, MOV, calibración e
+   inactividad sin cambiar el comportamiento actual (los tests viejos deben pasar).
+2. **T1.4 — K de eliminatorias.** `infer_factor_k` casi nunca dispara (99,4 % de los
+   partidos con K=20); mapear los textos reales de `matchday` y refrescar desde el caché.
+3. **T1.1 — Harness de backtest.** Reproducir la línea base (Brier ≈ 0,1637 en 2021+).
+4. **T0.7 → T0.8 → T0.10** (Fase 0b, con VPN) quedan para cuando haya hueco: etapas de
+   DTs (imputación pre-2015) y UEFA.
 
 ## Comandos útiles para retomar
 

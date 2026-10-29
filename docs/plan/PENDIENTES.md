@@ -43,12 +43,13 @@ opciones, escribila debajo de la línea para que quede el registro.
 
 ## 2. Decisiones (aprobar)
 
-- [ ] **Umbral de cobertura para publicar** — no bloquea el trabajo; se puede responder cuando quieras.
-  - La regla propuesta: un DT es publicable si jugó en el último año, tiene 15+ partidos y
-    **su liga tiene 90 % o más de cobertura en los últimos 3 años**.
-  - Con los datos de hoy pasan 1.272 de 1.364 DTs activos; todas las ligas argentinas
-    están al 100 %. Los que quedan afuera son de Bolivia, Ecuador y Colombia.
-  - Si te parece bien el 90 %, no hace falta que hagas nada: es el valor por defecto.
+- [ ] **Umbral de cobertura para publicar** — ya implementado con los valores por defecto (T0.5, 2026-10-29); podés pedir cambios cuando quieras, se ajustan sin rehacer nada.
+  - Regla vigente: un DT es publicable si jugó en el último año, tiene 15+ partidos y su
+    liga tiene 90 % o más de cobertura en los últimos 3 años.
+  - Con los datos de hoy: **1.048 publicables** de 6.806 DTs; 105 con club argentino.
+    Quedan afuera 3.736 inactivos, 1.804 con pocos partidos, 67 de ligas con datos
+    incompletos (Bolivia y Ecuador) y 5 sin liga doméstica.
+  - Para verlo: `python3 scripts/publicables.py --pais Argentina --motivos`.
 
 - [ ] **Cobertura de Argentina** — **T0.4 terminó el 2026-10-28** (queda tu comentario).
   - Resultado (detalle en `docs/ARGENTINA_COBERTURA.md`): Primera 2017-2020 recuperada

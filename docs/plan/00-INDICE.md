@@ -51,7 +51,7 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [x] | T0.3 | Bug de fechas del fixture | `01-fase0-datos.md` | 🔒 | T0.2 |
 | [x] | T0.4 | Recuperar Argentina | `01-fase0-datos.md` | 🔒 👤 | T0.1, T0.2 |
 | [x] | T0.6 | País real de los clubes | `01-fase0-datos.md` | ⚙️ | T0.4 |
-| [ ] | T0.5 | Reglas de publicación | `01-fase0-datos.md` | ⚙️ | T0.2, T0.4, T0.6 |
+| [x] | T0.5 | Reglas de publicación | `01-fase0-datos.md` | ⚙️ | T0.2, T0.4, T0.6 |
 | [ ] | T0.10 | UEFA al catálogo y backfill | `02-fase0b-historicos.md` | 🔒 | T0.1 |
 | [ ] | T0.7 | Estudio: fuente de etapas de DTs | `02-fase0b-historicos.md` | 🔒 👤 | T0.4 |
 | [ ] | T0.8 | Scrape de etapas y perfiles | `02-fase0b-historicos.md` | 🔒 | T0.7 |
