@@ -99,11 +99,15 @@ Conclusión: calcular desde 2000 conserva el historial y no perjudica la predicc
 costo es que los ratings de veteranos retirados dependen de datos previos a 2012, que
 Transfermarkt tiene incompletos (ver `docs/ARGENTINA_COBERTURA.md` y la deuda de T0.9).
 
-## 6. Cómo se adopta
+## 6. Adopción (T1.7, 2026-10-29)
 
-1. `T1.7`: fijar `hfa=45` y `mov_mode="amortiguado"` como valores por defecto de
-   `EloParams` (un solo lugar, `elo.py`), subir `MODELO_VERSION` y correr `recompute`.
-2. `validate_elo.py` en verde y comparación de rankings guardada en `data/audit/`.
-3. Todas las imágenes y el pipeline usan después el mismo `EloParams`.
+**Aprobado por el usuario y aplicado.** `HOME_ADVANTAGE = 45`, `EloParams.mov_mode =
+"amortiguado"` por defecto y `MODELO_VERSION = "elo-v2"` en `elo.py`. Se recalcularon los
+203.064 partidos: `validate_elo.py` en verde (masa 6.806.000, 0 duplicados, suma cero).
 
-Revertir es cambiar dos valores por defecto y volver a correr `recompute`.
+Comparación guardada en `data/audit/ranking_antes_despues.md`: **correlación de rangos
+0,9981** sobre los 1.308 DTs con 100+ partidos. Los ratings bajan en bloque (~70-85
+puntos en la punta: Arteta 1531,8 → 1446,6) porque la goleada amortiguada mueve menos;
+el orden se mantiene (Zidane y Luis Enrique intercambian el 10º puesto).
+
+Revertir es cambiar los dos valores por defecto y volver a correr `recompute`.

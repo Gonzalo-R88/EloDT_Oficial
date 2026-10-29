@@ -61,9 +61,9 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [x] | T1.2 | `EloParams` retrocompatible | `03-fase1-modelo.md` | ⚙️ | — |
 | [x] | T1.3 | K de calibración e inactividad | `03-fase1-modelo.md` | ⚙️ | T1.2 |
 | [x] | T1.4 | K de eliminatorias | `03-fase1-modelo.md` | ⚙️ | T1.2 |
-| [ ] | T1.5 | Búsqueda de parámetros y sensibilidad | `03-fase1-modelo.md` | ⚙️ 👤 | T1.1, T1.3, T1.4 |
-| [ ] | T1.6 | Sanidad con DTs conocidos | `03-fase1-modelo.md` | ⚙️ 👤 | T1.5 |
-| [ ] | T1.7 | Aplicar modelo y recalcular | `03-fase1-modelo.md` | ⚙️ | T1.6 |
+| [x] | T1.5 | Búsqueda de parámetros y sensibilidad | `03-fase1-modelo.md` | ⚙️ 👤 | T1.1, T1.3, T1.4 |
+| [x] | T1.6 | Sanidad con DTs conocidos | `03-fase1-modelo.md` | ⚙️ 👤 | T1.5 |
+| [x] | T1.7 | Aplicar modelo y recalcular | `03-fase1-modelo.md` | ⚙️ | T1.6 |
 | [ ] | T1.8 | Capa B en el harness | `03-fase1-modelo.md` | ⚙️ | T1.1 |
 | [ ] | T1.9 | Comparar capa B vs A | `03-fase1-modelo.md` | ⚙️ | T1.8, T1.5 |
 | [ ] | T1.10 | Decisión de la capa B | `03-fase1-modelo.md` | ⚙️ 👤 | T1.9 |

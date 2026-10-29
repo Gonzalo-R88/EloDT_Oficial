@@ -180,7 +180,19 @@
     **Brier 0,1638** (constante 0,1782). Primeras señales: `hfa=55` baja a 0,1624;
     `mov amortiguado` a 0,1629; ambos juntos a **0,1616** (log-loss 1,0370 vs 1,0441).
     Esas señales se confirman o descartan en T1.5. **113 tests verdes.**
-15. **T0.5 — reglas de publicación (NUEVO).** `publicacion.py` (**nuevo**) es la única
+15. **T1.5 + T1.7 — modelo ELO v2 adoptado (2026-10-29).** Búsqueda de parámetros con
+    entrenamiento 2016-2022 y validación 2023-2026 (`scripts/tune_elo.py`, CSV en
+    `data/audit/tune_elo.csv`); protocolo, resultados y alternativas en
+    `docs/MODELO_ELO.md`. **Decisión del usuario:** localía **45** (antes 30) y margen
+    de victoria **amortiguado**. Aplicado en `elo.py` (`HOME_ADVANTAGE = 45`,
+    `mov_mode="amortiguado"` por defecto, `MODELO_VERSION = "elo-v2"`) y recalculados
+    los 203.064 partidos: `validate_elo.py` en verde (masa 6.806.000). Documentado:
+    la calibración de DTs nuevos **no mejora** la predicción (queda implementada y
+    apagada) y calcular desde 2000 en vez de 2015 no cambia las predicciones (0,0002),
+    así que se conserva todo el historial. Comparación de rankings en
+    `data/audit/ranking_antes_despues.md` (correlación 0,9981; los ratings bajan en
+    bloque ~70-85 puntos porque la goleada amortiguada mueve menos).
+16. **T0.5 — reglas de publicación (NUEVO).** `publicacion.py` (**nuevo**) es la única
     fuente de verdad de "esto se publica": `es_publicable(dt)` / `estado_publicacion()`
     combinan (1) mínimo de partidos (15; 5 para interinos), (2) actividad (jugó en los
     últimos 365 días), (3) la liga doméstica del club actual y (4) su cobertura
@@ -209,13 +221,13 @@
     (Bolivia 15, Ecuador 14, Argentina 72 clubes), 430 sin trabajo, y ya no hay
     excluidos por cobertura. La auditoría sigue mostrando la cobertura **por
     competencia** (para ver huecos reales de TM).
-16. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
+17. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id
     2024 = Racing 2-0 Botafogo, 2025 = Lanús 1-0 Flamengo). Alta en el catálogo con
     `first_season=2003` (no se jugó 2000-2002), `kind="internacional"`, offset 1.
     Backfill 2003-2026: **39 partidos** cargados. Base: **195.338 partidos**,
     **6.734 DTs**, `validate_elo.py` en verde, conflictos de fecha 25.
     Faltan en TM las ediciones 2007, 2009 y 2010 (ratio 0 en la auditoría).
-17. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
+18. **T0.4 — Argentina (NUEVO).** Ver `docs/ARGENTINA_COBERTURA.md`. Tres causas
     distintas: (a) el guard de temporada descartaba las temporadas agosto-junio
     (bug, corregido: ahora acepta la temporada si cae dentro del rango de fechas);
     (b) TM cerró `AR1N` en 23/24 y desde 2025 la Primera va como **`ARG1`** (Torneo
@@ -228,7 +240,7 @@
     **6.732 DTs** (+3.368 partidos), `validate_elo.py` en verde, conflictos de
     fecha sin cambios (25). Cobertura argentina 2017-2020 recuperada (0,98-1,00)
     y 2025-26 nueva (0,99-1,00). 62 tests verdes.
-18. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
+19. **Resultado de T0.3:** 669 páginas de partido re-descargadas (~2 h en `tmux`),
     **187 fechas corregidas**, `recompute` + `validate_elo.py` en verde. Los conflictos
     de DT-día bajaron de **152 a 25**, y los 25 restantes no son de fecha: son errores
     de atribución de TM (20 del mismo DT en dos clubes de la misma jornada, 3 en ligas

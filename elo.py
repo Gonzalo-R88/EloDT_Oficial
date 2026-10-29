@@ -15,9 +15,15 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
-HOME_ADVANTAGE: float = 30.0
+# Modelo ELO v2 (adoptado 2026-10-29, ver docs/MODELO_ELO.md): la ventaja de localía
+# pasó de 30 a 45 y el ajuste por goleada es "amortiguado". El valor anterior (30) se
+# eligió sin datos; con 69.638 partidos de liga el local saca 57,4 % de los puntos,
+# que equivale a ~51 puntos de ELO, y la validación 2023-26 prefiere 45.
+HOME_ADVANTAGE: float = 45.0
 ELO_SCALE: float = 400.0
 INITIAL_ELO: float = 1000.0
+# Versión del modelo: subir cuando cambien parámetros que afectan los ratings.
+MODELO_VERSION: str = "elo-v2"
 
 VALID_FACTOR_K = (20, 30, 40)
 VALID_BENCH_IMPACT = (-1, 0, 1)
@@ -54,7 +60,7 @@ class EloParams:
     """
 
     hfa: float = HOME_ADVANTAGE
-    mov_mode: str = MOV_ACTUAL
+    mov_mode: str = MOV_AMORTIGUADO
     mov_cap: Optional[float] = None
     calibracion_n: int = 0
     calibracion_mult: float = 2.0

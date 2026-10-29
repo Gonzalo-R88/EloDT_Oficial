@@ -31,7 +31,8 @@ AEP (Analítica de Entrenadores & Performance): ELO ratings for football manager
 
 ## Architecture
 
-- `elo.py` — pure ELO math, no DB. `ΔELO = K·C·G·(R−E)`, home advantage +30, initial 1000, zero-sum exchange.
+- `elo.py` — pure ELO math, no DB. `ΔELO = K·C·G·(R−E)`, initial 1000, zero-sum exchange. **Modelo v2 (desde 2026-10-29, `MODELO_VERSION`):** ventaja de localía **45** (antes 30) y margen de victoria **amortiguado** (la misma goleada pesa menos si el ganador era favorito). Todo parametrizado en `EloParams`; cambiar parámetros exige `recompute`. Evidencia y alternativas en `docs/MODELO_ELO.md`.
+- `backtest.py` — replay del histórico en memoria (203k partidos en ~2 s) con Brier, log-loss 1X2 y calibración. CLIs: `scripts/backtest_elo.py` (una configuración) y `scripts/tune_elo.py` (grilla + sensibilidad, escribe `data/audit/tune_elo.csv`).
 - `services.py` — DB orchestration. `process_match_elo` is idempotent and returns `"procesado"` / `"duplicado"`; `recompute_all_elo` replays history deterministically from 1000.
 - `ranking.py` — data layer for the "Power Ranking de la Fecha": aggregates ELO deltas per coach over a date window (default last 7 days). No matplotlib, unit-testable.
 - `duel.py` — data layer for the "Duelo de Pizarras": per-coach record (PJ/G-E-P/goals/form) plus head-to-head between two coaches. `resolve_coach` accepts a `dt_id` or a name substring. No matplotlib, unit-testable.
