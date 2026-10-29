@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from models import Base, Club, Coach, Competition, MatchCoach
+from elo import EloParams
 from services import (
     STATUS_DUPLICATE,
     STATUS_PROCESSED,
@@ -89,6 +90,43 @@ def test_duplicate_match_is_skipped(db):
                    gl=3, gv=0, fecha="2024-05-11")
     assert status == STATUS_DUPLICATE
     assert _elo(session, data["coach_a"]) == elo_a_before
+
+
+def test_recompute_con_calibracion_conserva_la_masa(db):
+    """Con la calibración activa, la suma de ELO sigue siendo 1000 × cantidad de DTs."""
+    session, data = db
+    _play(session, data, tm_id=100, local=data["coach_a"], visita=data["coach_b"],
+          gl=1, gv=0, fecha="2024-05-11")
+    _play(session, data, tm_id=101, local=data["coach_b"], visita=data["coach_c"],
+          gl=2, gv=2, fecha="2024-05-18")
+    _play(session, data, tm_id=102, local=data["coach_c"], visita=data["coach_a"],
+          gl=0, gv=3, fecha="2024-05-25")
+
+    recompute_all_elo(session=session, params=EloParams(calibracion_n=30, calibracion_mult=2.0))
+
+    total = sum(_elo(session, cid) for cid in (data["coach_a"], data["coach_b"], data["coach_c"]))
+    assert round(total, 2) == 3000.0
+    # Y cada partido sigue siendo de suma cero.
+    for match in session.execute(select(MatchCoach)).scalars():
+        delta = float(match.elo_local_nuevo - match.elo_local_previo) + float(
+            match.elo_visita_nuevo - match.elo_visita_previo
+        )
+        assert abs(delta) < 0.02
+
+
+def test_la_calibracion_duplica_el_movimiento_del_primer_partido(db):
+    """Dos DTs sin historial juegan con K doble: el mismo partido mueve el doble."""
+    session, data = db
+    _play(session, data, tm_id=200, local=data["coach_a"], visita=data["coach_b"],
+          gl=1, gv=0, fecha="2024-05-11")
+
+    recompute_all_elo(session=session)
+    sin_calibracion = _elo(session, data["coach_a"])
+
+    recompute_all_elo(session=session, params=EloParams(calibracion_n=30, calibracion_mult=2.0))
+    con_calibracion = _elo(session, data["coach_a"])
+
+    assert round(con_calibracion - 1000, 2) == round(2 * (sin_calibracion - 1000), 2)
 
 
 def test_recompute_is_deterministic(db):

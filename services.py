@@ -15,7 +15,9 @@ from elo import (
     INITIAL_ELO,
     VALID_BENCH_IMPACT,
     VALID_FACTOR_K,
+    EloParams,
     compute_elo_delta,
+    match_calibracion,
 )
 from models import Coach, Competition, MatchCoach
 
@@ -29,6 +31,11 @@ def _normalize_date(fecha: Union[date, str]) -> date:
     if isinstance(fecha, str):
         return datetime.strptime(fecha, "%Y-%m-%d").date()
     return fecha
+
+
+def _dias_desde(fecha: date, anterior: Optional[date]) -> Optional[int]:
+    """Días entre dos partidos del mismo DT (None si es el primero)."""
+    return (fecha - anterior).days if anterior is not None else None
 
 
 def _validate_bench_impact(value: int, field: str) -> None:
@@ -178,13 +185,21 @@ def process_match_elo(
             db_session.close()
 
 
-def recompute_all_elo(session: Optional[Session] = None, apply_mov: bool = True) -> int:
+def recompute_all_elo(
+    session: Optional[Session] = None,
+    apply_mov: bool = True,
+    params: Optional[EloParams] = None,
+    aplicar_calibracion: bool = True,
+) -> int:
     """Recalcula el ELO de todos los DTs reproduciendo el histórico desde 1000.
 
     Permite incorporar nuevas ligas/competencias sin re-scrapear: se apoya en los
     goles, el factor K y el coeficiente almacenados en `partidos_dt`.
+    Con `params=None` se usa `EloParams()`, que reproduce exactamente el modelo
+    original; la calibración de DTs nuevos se activa con `params.calibracion_n > 0`.
     Devuelve la cantidad de partidos reproducidos.
     """
+    parametros = params or EloParams()
     should_close_session = session is None
     db_session: Session = session if session is not None else SessionFactory()
 
@@ -205,14 +220,31 @@ def recompute_all_elo(session: Optional[Session] = None, apply_mov: bool = True)
             )
         ).scalars().all()
 
+        # Contadores para la calibración: partidos previos y última fecha por DT.
+        partidos_previos: dict[int, int] = {}
+        ultima_fecha: dict[int, date] = {}
+
         for match in matches:
             elo_local = elo_map.get(match.dt_local_id, INITIAL_ELO)
             elo_visita = elo_map.get(match.dt_visita_id, INITIAL_ELO)
             coeficiente = coefficients.get(match.competencia_id, 1.0)
 
+            if aplicar_calibracion and parametros.calibracion_n > 0:
+                mult_local = match_calibracion(
+                    partidos_previos.get(match.dt_local_id, 0), parametros,
+                    _dias_desde(match.fecha, ultima_fecha.get(match.dt_local_id)),
+                )
+                mult_visita = match_calibracion(
+                    partidos_previos.get(match.dt_visita_id, 0), parametros,
+                    _dias_desde(match.fecha, ultima_fecha.get(match.dt_visita_id)),
+                )
+            else:
+                mult_local = mult_visita = 1.0
+
             delta_local, delta_visita, _ = compute_elo_delta(
                 elo_local, elo_visita, match.goles_local, match.goles_visita,
-                match.factor_k, coeficiente, apply_mov=apply_mov,
+                match.factor_k, coeficiente, apply_mov=apply_mov, params=parametros,
+                mult_local=mult_local, mult_visita=mult_visita,
             )
             new_local = round(elo_local + delta_local, 2)
             new_visita = round(elo_visita + delta_visita, 2)
@@ -224,6 +256,9 @@ def recompute_all_elo(session: Optional[Session] = None, apply_mov: bool = True)
 
             elo_map[match.dt_local_id] = new_local
             elo_map[match.dt_visita_id] = new_visita
+            for dt_id in (match.dt_local_id, match.dt_visita_id):
+                partidos_previos[dt_id] = partidos_previos.get(dt_id, 0) + 1
+                ultima_fecha[dt_id] = match.fecha
 
         for coach in coaches:
             coach.elo_actual = Decimal(str(elo_map.get(coach.dt_id, INITIAL_ELO)))

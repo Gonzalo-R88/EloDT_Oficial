@@ -223,6 +223,36 @@ def test_infer_factor_k_by_round():
     assert infer_factor_k(get_competition("AR1N"), "1.Matchday") == 20
 
 
+def test_infer_factor_k_con_los_textos_reales_del_cache():
+    """Textos tal como aparecen en los fixtures de TM (muestreados del caché)."""
+    arca = get_competition("ARCA")
+    cli = get_competition("CLI")
+    cs = get_competition("CS")
+    cdca = get_competition("CDCA")
+    copa_de_la_liga = get_competition("CDLP")
+
+    # Finales: K=40 (incluye ida y vuelta).
+    assert infer_factor_k(arca, "Final") == 40
+    assert infer_factor_k(get_competition("RECO"), "Final 1st Leg") == 40
+    assert infer_factor_k(cli, "Final") == 40
+
+    # Eliminación directa: K=30.
+    assert infer_factor_k(arca, "First Round") == 30
+    assert infer_factor_k(arca, "Second Round") == 30
+    assert infer_factor_k(arca, "Third Round") == 30
+    assert infer_factor_k(arca, "Round of 16") == 30
+    assert infer_factor_k(arca, "Qualifying Round 1st leg") == 30
+    assert infer_factor_k(arca, "intermediate stage 2nd leg") == 30
+    assert infer_factor_k(cli, "Second Round 1st leg") == 30
+    assert infer_factor_k(cs, "First Round 2nd leg") == 30
+    assert infer_factor_k(cdca, "All matches Copa de la Liga Profesional - Playoffs 2021") == 30
+
+    # Fase de grupos / fecha regular de una copa con formato de liga: K=20.
+    assert infer_factor_k(cli, None) == 20
+    assert infer_factor_k(cli, "") == 20
+    assert infer_factor_k(copa_de_la_liga, "7.Matchday") == 20
+
+
 def test_parse_match_report_without_timeline_defaults_to_zero():
     html = """
     <html><body>

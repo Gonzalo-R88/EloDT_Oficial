@@ -57,10 +57,10 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [ ] | T0.8 | Scrape de etapas y perfiles | `02-fase0b-historicos.md` | 🔒 | T0.7 |
 | [ ] | T0.9 | Imputación de DTs por etapas | `02-fase0b-historicos.md` | ⚙️ | T0.8 |
 | [ ] | T0.11 | Estudio: Argentina 2000-2014 | `02-fase0b-historicos.md` | ⚙️ 👤 | T0.8 |
-| [ ] | T1.1 | Harness de backtest | `03-fase1-modelo.md` | ⚙️ | T0.3 |
-| [ ] | T1.2 | `EloParams` retrocompatible | `03-fase1-modelo.md` | ⚙️ | — |
-| [ ] | T1.3 | K de calibración e inactividad | `03-fase1-modelo.md` | ⚙️ | T1.2 |
-| [ ] | T1.4 | K de eliminatorias | `03-fase1-modelo.md` | ⚙️ | T1.2 |
+| [x] | T1.1 | Harness de backtest | `03-fase1-modelo.md` | ⚙️ | T0.3 |
+| [x] | T1.2 | `EloParams` retrocompatible | `03-fase1-modelo.md` | ⚙️ | — |
+| [x] | T1.3 | K de calibración e inactividad | `03-fase1-modelo.md` | ⚙️ | T1.2 |
+| [x] | T1.4 | K de eliminatorias | `03-fase1-modelo.md` | ⚙️ | T1.2 |
 | [ ] | T1.5 | Búsqueda de parámetros y sensibilidad | `03-fase1-modelo.md` | ⚙️ 👤 | T1.1, T1.3, T1.4 |
 | [ ] | T1.6 | Sanidad con DTs conocidos | `03-fase1-modelo.md` | ⚙️ 👤 | T1.5 |
 | [ ] | T1.7 | Aplicar modelo y recalcular | `03-fase1-modelo.md` | ⚙️ | T1.6 |

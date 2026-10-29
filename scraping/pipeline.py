@@ -128,17 +128,35 @@ def scrape_season(
 # ---------------------------------------------------------------------------
 # Normalización
 # ---------------------------------------------------------------------------
+# Textos de ronda que Transfermarkt usa en copas (extraídos del caché real).
+_RONDAS_ELIMINATORIAS = (
+    "round of 16", "round of 32", "last 16", "last 32",
+    "quarter", "cuarto", "octavo", "semi",
+    "knockout", "play off", "playoff", "play-off", "playoffs",
+    "first round", "second round", "third round", "qualifying round",
+    "intermediate stage",
+)
+# "Quarter-Finals" y "Semi-Finals" contienen la palabra "final": hay que excluirlas.
+_EXCLUIR_FINAL = ("semi", "quarter", "cuarto", "octavo", "round of")
+
+
 def infer_factor_k(config: CompetitionConfig, matchday: Optional[str]) -> int:
-    """Infiere el factor K según la instancia (final, eliminación o regular)."""
+    """Infiere el factor K según la instancia: 40 final, 30 eliminación directa, 20 resto.
+
+    Las copas y competencias internacionales traen la ronda en el fixture
+    (`matchday`): "Final", "Semi-Finals 1st Leg", "Round of 16", "First Round",
+    "Play Off 1st leg", etc. Las fases de grupos no traen texto (`None`) o traen la
+    fecha ("3.Matchday"), y quedan en K=20 como una liga.
+    """
     if config.kind == "liga":
         return 20
-    text = (matchday or "").lower()
+    text = (matchday or "").strip().lower()
     if not text or text == "schedule":
         return 20
-    # Final (excluyendo semifinal/quarterfinal)
-    if "final" in text and "semi" not in text and "quarter" not in text and "cuarto" not in text:
+
+    if "final" in text and not any(marca in text for marca in _EXCLUIR_FINAL):
         return 40
-    if any(k in text for k in ("last 16", "round of 16", "quarter", "cuarto", "semi", "knockout", "octavo")):
+    if any(k in text for k in _RONDAS_ELIMINATORIAS):
         return 30
     return 20
 
