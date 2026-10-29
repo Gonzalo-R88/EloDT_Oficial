@@ -17,6 +17,7 @@ from publicacion import (
     MOTIVO_COBERTURA,
     MOTIVO_INACTIVO,
     MOTIVO_POCOS_PARTIDOS,
+    MOTIVO_SELECCION,
     MOTIVO_SIN_CLUB,
     MOTIVO_SIN_LIGA,
     codigos_del_mismo_pais,
@@ -74,9 +75,10 @@ def db():
     club_int = Club(transfermarkt_id=8, nombre="Club Inter", pais="desconocido")
     club_rotacion = Club(transfermarkt_id=10, nombre="Club Rotación", pais="Argentina")
     club_inactivo = Club(transfermarkt_id=11, nombre="Club Inactivo", pais="Argentina")
+    seleccion = Club(transfermarkt_id=12, nombre="Brasil", pais="desconocido", tipo="seleccion")
     filler = Club(transfermarkt_id=9, nombre="Rival", pais="Argentina")
     session.add_all([club_30, club_20, club_14, club_3, club_baja, club_vacio,
-                     club_int, club_rotacion, club_inactivo, filler])
+                     club_int, club_rotacion, club_inactivo, seleccion, filler])
     session.commit()
 
     def entrenador(tm_id, apellido):
@@ -92,9 +94,10 @@ def db():
     dt_inactivo = entrenador(43, "Inactivo")
     dt_despedido = entrenador(44, "Despedido")
     dt_nuevo = entrenador(45, "Nuevo")
+    dt_seleccion = entrenador(46, "Seleccion")
     relleno = entrenador(99, "Relleno")
     session.add_all([dt30, dt20, dt14, dt3, dt_baja, dt_vacio, dt_int, dt_inactivo,
-                     dt_despedido, dt_nuevo, relleno])
+                     dt_despedido, dt_nuevo, dt_seleccion, relleno])
     session.commit()
 
     siguiente = {"id": 1}
@@ -131,6 +134,7 @@ def db():
     # asumió "nuevo" (último partido hace 5 días).
     serie(dt_despedido, club_rotacion, comp_ok, 20, HOY - timedelta(days=40))
     serie(dt_nuevo, club_rotacion, comp_ok, 6, HOY - timedelta(days=5))
+    serie(dt_seleccion, seleccion, comp_int, 12, HOY - timedelta(days=30))
     session.commit()
 
     ids = {
@@ -138,6 +142,7 @@ def db():
         "dt_baja": dt_baja.dt_id, "dt_vacio": dt_vacio.dt_id, "dt_int": dt_int.dt_id,
         "dt_inactivo": dt_inactivo.dt_id, "dt_despedido": dt_despedido.dt_id,
         "dt_nuevo": dt_nuevo.dt_id,
+        "dt_seleccion": dt_seleccion.dt_id,
     }
     yield session, ids
     session.close()
@@ -340,6 +345,17 @@ def test_ranking_por_club_muestra_un_solo_dt_por_club(db, cobertura):
     assert ids["dt30"] in dts
     # Ordenado por ELO descendente.
     assert [e.elo for e in ranking] == sorted((e.elo for e in ranking), reverse=True)
+
+
+def test_dt_de_seleccion_no_es_sin_trabajo_ni_juega_el_ranking_de_clubes(db, cobertura):
+    """Un DT de selección no compite en el ranking de clubes, pero no está desempleado."""
+    session, ids = db
+    estado = es_publicable(session, ids["dt_seleccion"], hasta=HOY, ruta_cobertura=cobertura)
+
+    assert estado.en_seleccion is True
+    assert estado.sin_trabajo is False
+    assert estado.publicable is False
+    assert estado.motivo == MOTIVO_SELECCION
 
 
 def test_estado_publicacion_sin_cobertura_no_publica_nada(db, tmp_path):

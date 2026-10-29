@@ -73,7 +73,7 @@ class Competition(Base):
     __table_args__ = (
         CheckConstraint("nivel IN ('S', 'A', 'B', 'C')", name="check_nivel_competencia"),
         CheckConstraint(
-            "tipo IS NULL OR tipo IN ('liga', 'copa', 'internacional')",
+            "tipo IS NULL OR tipo IN ('liga', 'copa', 'internacional', 'selecciones')",
             name="check_tipo_competencia",
         ),
         UniqueConstraint("codigo", name="uq_competencias_codigo"),
@@ -89,9 +89,13 @@ class Club(Base):
     transfermarkt_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     pais: Mapped[Optional[str]] = mapped_column(String(50), default="Argentina")
+    # "club" o "seleccion": una selección nacional no tiene liga doméstica y sus DTs
+    # no compiten en el ranking de clubes.
+    tipo: Mapped[str] = mapped_column(String(10), default="club", nullable=False)
 
     __table_args__ = (
         UniqueConstraint("transfermarkt_id", name="uq_clubes_tm_id"),
+        CheckConstraint("tipo IN ('club', 'seleccion')", name="check_tipo_club"),
     )
 
 

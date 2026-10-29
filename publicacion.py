@@ -34,7 +34,7 @@ from sqlalchemy import and_, func, select, union_all
 from sqlalchemy.orm import Session
 
 from config import settings
-from models import Competition, MatchCoach
+from models import Club, Competition, MatchCoach
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ MOTIVO_SIN_LIGA = "sin_liga_domestica"
 MOTIVO_COBERTURA = "cobertura_baja"
 MOTIVO_SIN_FECHAS = "sin_partidos"
 MOTIVO_SIN_CLUB = "sin_club_actual"
+MOTIVO_SELECCION = "dirige_seleccion"
 
 _cobertura_cache: tuple[float, dict] | None = None
 
@@ -72,6 +73,8 @@ class Elegibilidad:
     # Dirigió en el último año pero hoy no es el DT de ningún club: candidato al
     # ranking de "técnicos sin trabajo".
     sin_trabajo: bool = False
+    # Dirige una selección nacional (no compite en el ranking de clubes).
+    en_seleccion: bool = False
 
     @property
     def en_movimientos(self) -> bool:
@@ -284,6 +287,11 @@ def estado_publicacion(
     desde_ligas = referencia - timedelta(days=365 * settings.cobertura_anios)
     ligas = ligas_domesticas(session, desde_ligas)
     por_dt = _datos_por_dt(session)
+    selecciones = {
+        club_id
+        for club_id, tipo in session.execute(select(Club.club_id, Club.tipo)).all()
+        if tipo == "seleccion"
+    }
 
     # dt_id -> club del que es técnico actual (si es el de algún club).
     club_del_dt: dict[int, int] = {}
@@ -329,6 +337,13 @@ def estado_publicacion(
             estados[dt_id] = Elegibilidad(publicable=False, motivo=MOTIVO_INACTIVO, **base)
             continue
 
+        if club_id in selecciones:
+            # Dirige una selección: no compite en el ranking de clubes y no es "sin
+            # trabajo". Se marca aparte para poder armar un ranking de selecciones.
+            estados[dt_id] = Elegibilidad(
+                publicable=False, en_seleccion=True, motivo=MOTIVO_SELECCION, **base
+            )
+            continue
         if liga is None:
             estados[dt_id] = Elegibilidad(publicable=False, motivo=MOTIVO_SIN_LIGA, **base)
             continue

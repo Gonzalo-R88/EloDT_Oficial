@@ -251,12 +251,15 @@ def ensure_competition(session: Session, config: CompetitionConfig) -> Competiti
     return competition
 
 
-def ensure_club(session: Session, tm_id: int, name: str, country: str) -> Club:
+def ensure_club(
+    session: Session, tm_id: int, name: str, country: str, tipo: str = "club"
+) -> Club:
+    """Busca o crea el equipo. `tipo` distingue clubes de selecciones nacionales."""
     club = session.execute(
         select(Club).where(Club.transfermarkt_id == tm_id)
     ).scalar_one_or_none()
     if club is None:
-        club = Club(transfermarkt_id=tm_id, nombre=name, pais=country)
+        club = Club(transfermarkt_id=tm_id, nombre=name, pais=country, tipo=tipo)
         session.add(club)
         session.flush()
     elif club.pais in (None, "", PAIS_DESCONOCIDO) and country != PAIS_DESCONOCIDO:
@@ -330,12 +333,17 @@ def persist_matches(
 
             # El país de la competencia sólo sirve como país del club si es doméstica:
             # en Libertadores/Sudamericana la competencia es "Conmebol", no un país.
-            pais_club = config.country if config.kind != "internacional" else PAIS_DESCONOCIDO
+            # El país de la competencia sólo sirve como país del club si es doméstica:
+            # en Libertadores la competencia es "Conmebol" y en un Mundial es "Mundo",
+            # ninguno es el país de un club ni de una selección.
+            domestica = config.kind not in ("internacional", "selecciones")
+            pais_club = config.country if domestica else PAIS_DESCONOCIDO
+            tipo_equipo = "seleccion" if config.kind == "selecciones" else "club"
             home_club = ensure_club(
-                db_session, match.home_club_tm_id, match.home_club_name, pais_club
+                db_session, match.home_club_tm_id, match.home_club_name, pais_club, tipo_equipo
             )
             away_club = ensure_club(
-                db_session, match.away_club_tm_id, match.away_club_name, pais_club
+                db_session, match.away_club_tm_id, match.away_club_name, pais_club, tipo_equipo
             )
             home_coach = ensure_coach(
                 db_session, match.home_coach_tm_id, match.home_coach_name or ""
