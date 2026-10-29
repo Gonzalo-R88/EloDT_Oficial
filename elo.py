@@ -60,6 +60,10 @@ class EloParams:
     calibracion_mult: float = 2.0
     inactividad_dias: Optional[int] = None
     inactividad_partidos: int = 15
+    # Escala global del K (1,0 = el K guardado en cada partido). Sirve para cambiar la
+    # volatilidad del sistema sin tocar la base: `k_escala=1.25` equivale a pasar de
+    # un K base de 20 a 25.
+    k_escala: float = 1.0
 
     def __post_init__(self) -> None:
         if self.mov_mode not in VALID_MOV_MODES:
@@ -208,7 +212,8 @@ def compute_elo_delta(
         if apply_mov
         else 1.0
     )
-    k_efectivo = factor_k * (mult_local + mult_visita) / 2.0
+    parametros = params or EloParams()
+    k_efectivo = factor_k * parametros.k_escala * (mult_local + mult_visita) / 2.0
 
     delta_local = k_efectivo * coeficiente * mov * (r_local - e_local)
     delta_visita = k_efectivo * coeficiente * mov * (r_visita - (1.0 - e_local))

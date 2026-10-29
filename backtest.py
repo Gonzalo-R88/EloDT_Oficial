@@ -63,6 +63,8 @@ class Metricas:
     por_anio: dict[int, list[float]] = field(default_factory=dict)
     por_nivel: dict[str, list[float]] = field(default_factory=dict)
     calibracion: dict[tuple[float, float], list[float]] = field(default_factory=dict)
+    # Rating final de cada DT tras reproducir todo el histórico.
+    elo_final: dict[int, float] = field(default_factory=dict)
 
     @property
     def brier(self) -> float:
@@ -180,6 +182,7 @@ def evaluar(
         ultima_fecha[partido.dt_local] = partido.fecha
         ultima_fecha[partido.dt_visita] = partido.fecha
 
+    metricas.elo_final = dict(elo)
     return metricas
 
 
