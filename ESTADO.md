@@ -150,7 +150,12 @@
     afectados (`--sin-dt --desde 2015 --hasta 2026 --codes ... --apply`).
     **Decisión del usuario (2026-10-28):** recuperar **2012-2026 = 8.932 partidos**
     (`scripts/backfill_dts.sh`, 3 workers, ~9-10 h). Pre-2015 queda para T0.9
-    (imputación por etapas, sin requests). `persist_matches` ganó un fast-path: saltea
+    (imputación por etapas, sin requests).
+    **Resultado (28-oct, tras un reinicio de la PC y reanudación):** 8.932 re-descargados
+    (3.363 en la segunda tanda), **7.720 partidos nuevos cargados** → base de
+    **203.064 partidos** y **6.806 DTs**, `validate_elo.py` en verde (masa 6.806.000).
+    Cobertura 2012-2026: **94,6 %-100 % por año** (2013 en adelante ≥99 %). Los
+    conflictos de fecha subieron de 25 a **32** (todos rarezas de TM, no de parseo). `persist_matches` ganó un fast-path: saltea
     los `tm_match_id` ya cargados antes de hacer consultas por partido, así la recarga
     de una temporada entera tarda segundos.
 14. **Recopa Sudamericana real: código `RECO`.** Verificado contra TM (saison_id

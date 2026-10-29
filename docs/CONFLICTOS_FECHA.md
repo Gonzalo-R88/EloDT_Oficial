@@ -40,7 +40,14 @@ Los reportes cacheados ahora guardan `fecha`, así que una futura re-descarga no
 falta. Si aparece un caso nuevo, `python3 scripts/fix_fechas.py --fetch --bloques` baja
 solo los que falten y `--apply` los corrige (es idempotente).
 
-## 3. Los 25 conflictos que quedan (explicados)
+## 3. Los conflictos que quedan (explicados)
+
+> Actualización 2026-10-28: tras recuperar los partidos descartados por falta de DT
+> (ver `ESTADO.md`) el total pasó de 25 a **32**: los 7 nuevos aparecieron porque
+> ahora están cargados partidos que antes no estaban. Todos siguen el mismo patrón de
+> error de atribución de TM (23 en la misma jornada, 9 en jornadas o competencias
+> distintas en las que un club figura dos veces el mismo día). Las fechas están
+> confirmadas por las páginas de partido.
 
 Ninguno es un problema de fechas: **la fecha de esos partidos está confirmada por la
 página del partido**. El problema es que Transfermarkt asigna el **mismo entrenador a dos
