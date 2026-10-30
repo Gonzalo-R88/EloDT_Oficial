@@ -412,6 +412,19 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
+**Corte por tormenta (2026-10-29 ~21:00):** el backfill de eliminatorias + Nations
+League quedó **pausado a propósito** (procesos detenidos, caché íntegro: 0 JSON
+corruptos, base en 205.069 partidos con masa 7.082.000 OK). Reanudar con:
+
+```bash
+cd /mnt/f/ProyectoDT && tmux new -d -s aep-eli 'bash scripts/backfill_eliminatorias.sh'
+```
+
+Es reanudable: saltea los reportes ya cacheados (WMQ4 tenía 4 temporadas, EMQ 2,
+WMQ1 4). Al terminar encadena load → recompute → validate → audit.
+
+Después, lo que queda de la Fase 1 y el contenido:
+
 Los datos y las reglas de publicación están listos. Sigue la **Fase 1 (modelo ELO v2)**,
 toda sin VPN:
 
