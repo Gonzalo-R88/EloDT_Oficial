@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -33,6 +34,10 @@ from scraping.parser import parse_match_report, parse_schedule  # noqa: E402
 from scraping.pipeline import build_match_url  # noqa: E402
 from scraping.storage import RawStore  # noqa: E402
 from scraping.waf import WafChallengeSolver  # noqa: E402
+
+
+def _hora() -> str:
+    return datetime.now().strftime("%H:%M:%S")
 
 
 def url_fixture(codigo: str, slug: str, path: str, saison_id: int) -> str:
@@ -73,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 html = client.get(url, referer=f"https://{settings.transfermarkt_domain}/")
             except Exception as error:  # noqa: BLE001
-                print(f"[{codigo}] saison_id={saison_id}: error {error}")
+                print(f"{_hora()} [{codigo}] saison_id={saison_id}: error {error}")
                 continue
             fixtures = parse_schedule(html, codigo, saison_id)
             if not fixtures:
@@ -89,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
             anio = int(fechas[0][:4])
             store.write_fixtures(codigo, anio, [asdict(f) for f in fixtures])
             ediciones += 1
-            print(f"[{codigo}] saison_id={saison_id} -> edición {anio}: {len(fixtures)} partidos")
+            print(f"{_hora()} [{codigo}] saison_id={saison_id} -> edición {anio}: {len(fixtures)} partidos")
 
             if args.sin_reportes:
                 continue
@@ -102,12 +107,12 @@ def main(argv: list[str] | None = None) -> int:
                         fixture.match_id,
                     )
                 except Exception as error:  # noqa: BLE001
-                    print(f"  [{codigo}] partido {fixture.match_id}: error {error}")
+                    print(f"  {_hora()} [{codigo}] partido {fixture.match_id}: error {error}")
                     continue
                 store.write_match(codigo, anio, fixture.match_id, asdict(reporte))
                 if posicion % 20 == 0:
-                    print(f"  [{codigo} {anio}] {posicion}/{len(fixtures)} reportes")
-        print(f"[{codigo}] ediciones cacheadas: {ediciones}")
+                    print(f"  {_hora()} [{codigo} {anio}] {posicion}/{len(fixtures)} reportes")
+        print(f"{_hora()} [{codigo}] ediciones cacheadas: {ediciones}")
 
     return 0
 
