@@ -117,6 +117,8 @@ CATALOG: tuple[LeagueCandidate, ...] = (
                     "pokalwettbewerb"),
     LeagueCandidate("WMQ3", "Eliminatorias Mundial - Concacaf", "Concacaf", "CONCACAF", "selecciones", 0, 120, "B", 0.80,
                     "pokalwettbewerb"),
+    LeagueCandidate("POWM", "Eliminatorias Mundial - Playoffs", "Mundo", "FIFA", "selecciones", 0, 10, "A", 1.00,
+                    "pokalwettbewerb", note="repechajes intercontinentales"),
     LeagueCandidate("EMQ", "Eliminatorias Eurocopa", "UEFA", "UEFA", "selecciones", 0, 250, "A", 1.00,
                     "pokalwettbewerb"),
     # UEFA Nations League (por divisiones) y sus finales.

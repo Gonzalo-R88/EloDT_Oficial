@@ -197,9 +197,18 @@
     - **Torneos cargados:** +2.005 partidos (AFCN 491, FIWC 488, GOCU 340, EURO 246,
       AFAC 224, COPA 216), base en **205.069 partidos / 7.082 DTs**. `validate_elo` en
       verde. Ancelotti quedó con partidos del Mundial y `en_seleccion=True`.
-    - **Eliminatorias + Nations League: corriendo** (`backfill_eliminatorias.sh`,
-      ~9.300 partidos estimados, ~12 h, reanudable). Al terminar encadena load,
-      recompute, validate y audit.
+    - **Eliminatorias + Nations League: TERMINADO (2026-11-03).** 21 competencias de
+      selecciones, **10.404 partidos**: WMQ6 1.738, EMQ 1.484, WMQ1 1.155, WMQ2 1.091,
+      WMQ3 807, WMQ4 608, AFCN 491, FIWC 488, ACQU 391, GOCU 340, AFCQ 253, EURO 246,
+      AFAC 224, UNLC 218, COPA 216, UNLA 199, UNLB 193, UNLD 104, POWM 83, GCQU 51,
+      UNFI 24.
+    - **Base final: 213.468 partidos · 7.979 DTs · 209 selecciones.** `validate_elo` en
+      verde (masa 7.979.000, 0 duplicados, suma cero); conflictos de fecha 44 del todo
+      (rarezas de TM, ver `docs/CONFLICTOS_FECHA.md`).
+    - **Dos errores propios corregidos en el camino:** `POWM` faltaba en el catálogo y
+      tumbó un worker (se agregó), y `scrape_ediciones.py` ahora omite un código
+      desconocido en vez de abortar el lote. El backfill total se cortó dos veces por
+      reinicios de WSL: es reanudable y no perdió trabajo.
 16. **T1.5 + T1.7 — modelo ELO v2 adoptado (2026-10-29).** Búsqueda de parámetros con
     entrenamiento 2016-2022 y validación 2023-2026 (`scripts/tune_elo.py`, CSV en
     `data/audit/tune_elo.csv`); protocolo, resultados y alternativas en

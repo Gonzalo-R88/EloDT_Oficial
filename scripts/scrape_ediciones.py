@@ -70,7 +70,12 @@ def main(argv: list[str] | None = None) -> int:
     store = RawStore(settings.data_dir)
 
     for codigo in [c.strip().upper() for c in args.codes.split(",") if c.strip()]:
-        config = get_competition(codigo)
+        try:
+            config = get_competition(codigo)
+        except KeyError:
+            # Un código mal escrito no debe tirar abajo todo el lote.
+            print(f"[{codigo}] no está en el catálogo; se omite.")
+            continue
         vistos: set[tuple[int, ...]] = set()
         ediciones = 0
         for saison_id in range(args.desde, args.hasta + 1):
