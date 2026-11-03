@@ -16,13 +16,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from sqlalchemy import text  # noqa: E402
+
+from actualizacion import (  # noqa: E402
+    DIAS_REVISION,
+    aplicar_correcciones,
+    detectar_correcciones,
+    recomputar_con_tiempo,
+    validar_invariantes,
+)
 from captions import (  # noqa: E402
     textos_duelo,
     textos_movimientos,
@@ -297,6 +308,260 @@ def _escribir_paquete(
 
 
 # ---------------------------------------------------------------------------
+# Update semanal (T2.4 + T2.5)
+# ---------------------------------------------------------------------------
+LOCK = "weekly.lock"
+
+
+def _ruta_lock() -> Path:
+    return Path(settings.data_dir) / LOCK
+
+
+def _tomar_lock() -> bool:
+    """Crea el lock; devuelve False si ya hay una corrida en curso viva."""
+    ruta = _ruta_lock()
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    if ruta.exists():
+        try:
+            pid = int(ruta.read_text(encoding="utf-8").strip() or 0)
+        except (OSError, ValueError):
+            pid = 0
+        if pid and _proceso_vivo(pid):
+            return False
+        ruta.unlink(missing_ok=True)
+    ruta.write_text(str(os.getpid()), encoding="utf-8")
+    return True
+
+
+def _proceso_vivo(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _liberar_lock() -> None:
+    _ruta_lock().unlink(missing_ok=True)
+
+
+def _preflight() -> tuple[bool, str]:
+    """Base accesible y Transfermarkt alcanzable. Devuelve `(ok, motivo)`."""
+    session = create_session()
+    try:
+        session.execute(text("select 1 from partidos_dt limit 1")).first()
+    except Exception as error:  # noqa: BLE001
+        return False, f"base de datos no responde: {error}"
+    finally:
+        session.close()
+
+    try:
+        from scraper_transfermarkt import build_client
+
+        cliente = build_client()
+        cliente.get(f"https://{settings.transfermarkt_domain}/")
+    except Exception as error:  # noqa: BLE001
+        return False, f"Transfermarkt no responde ({error}); revisá la VPN"
+    return True, "ok"
+
+
+def _cargar_nuevos(session, store, cierre: date) -> dict:
+    """Carga a la base los reportes cacheados de las temporadas en curso."""
+    from scraping.competitions import COMPETITIONS
+    from scraping.pipeline import (
+        load_normalized,
+        persist_matches,
+        temporada_cerrada,
+        temporadas_en_curso,
+    )
+
+    stats = {"procesados": 0, "duplicados": 0, "sin_dt": 0, "sin_fecha": 0}
+    for config in COMPETITIONS.values():
+        if temporada_cerrada(config, cierre):
+            continue
+        for season in temporadas_en_curso(config, cierre):
+            if not store.has_fixtures(config.code, season):
+                continue
+            partidos = [
+                p for p in load_normalized(config, season, store)
+                if not p.date or p.date <= cierre.isoformat()
+            ]
+            if not partidos:
+                continue
+            resultado = persist_matches(partidos, session=session)
+            for clave in stats:
+                stats[clave] += resultado.get(clave, 0)
+    session.commit()
+    return stats
+
+
+def _competencias_inactivas(session, cierre: date, dias: int = 14) -> list[str]:
+    desde = cierre - timedelta(days=dias)
+    filas = session.execute(
+        text(
+            "select c.codigo from competencias c left join "
+            "(select competencia_id, max(fecha) ultimo from partidos_dt group by 1) p "
+            "on p.competencia_id = c.competencia_id "
+            "where p.ultimo is null or p.ultimo < :desde order by c.codigo"
+        ),
+        {"desde": desde},
+    ).all()
+    return [fila[0] for fila in filas if fila[0]]
+
+
+def update(
+    cierre: Optional[date] = None,
+    dry_run: bool = False,
+    skip_if_done: bool = False,
+    limit: Optional[int] = None,
+) -> tuple[int, dict]:
+    """Actualización semanal completa. Devuelve `(codigo_salida, resumen)`."""
+    cierre = semana_fin(cierre or date.today())
+
+    if skip_if_done:
+        session = create_session()
+        try:
+            ya = session.execute(
+                text(
+                    "select 1 from ejecuciones_pipeline where estado = 'ok' "
+                    "and semana_fin = :c limit 1"
+                ),
+                {"c": cierre},
+            ).first()
+        finally:
+            session.close()
+        if ya:
+            return 0, {"skip": True, "motivo": "ya corrió esta semana", "semana_fin": cierre.isoformat()}
+
+    if not _tomar_lock():
+        return 30, {"error": "otra corrida en curso (weekly.lock)"}
+
+    session = create_session()
+    run_id = None
+    try:
+        from models import EjecucionPipeline
+
+        ejecucion = EjecucionPipeline(semana_fin=cierre, estado="corriendo")
+        session.add(ejecucion)
+        session.commit()
+        run_id = ejecucion.run_id
+
+        ok, motivo = _preflight()
+        if dry_run:
+            return (0 if ok else 10), {
+                "dry_run": True,
+                "semana_fin": cierre.isoformat(),
+                "preflight": motivo,
+            }
+        if not ok:
+            raise _Bloqueo(motivo)
+
+        # 1) Scraping incremental
+        from scraper_transfermarkt import build_client
+        from scraping.competitions import COMPETITIONS
+        from scraping.pipeline import scrape_incremental
+        from scraping.storage import RawStore
+
+        store = RawStore(settings.data_dir)
+        cliente = build_client()
+        cliente.warm_up()
+        scrapeo = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
+        for config in COMPETITIONS.values():
+            stats = scrape_incremental(
+                config, cliente, store, semana_fin=cierre, limit=limit
+            )
+            for clave in scrapeo:
+                scrapeo[clave] += stats.get(clave, 0)
+
+        # 2) Carga
+        carga = _cargar_nuevos(session, store, cierre)
+
+        # 3) Correcciones
+        correcciones = detectar_correcciones(
+            session, Path(settings.data_dir), cierre - timedelta(days=DIAS_REVISION)
+        )
+        aplicadas = aplicar_correcciones(session, correcciones) if correcciones else 0
+
+        # 4) Recálculo (si hubo algo nuevo o correcciones)
+        segundos = None
+        if carga["procesados"] or aplicadas:
+            segundos = recomputar_con_tiempo(session)
+
+        # 5) Validación
+        valido, detalle = validar_invariantes(session)
+        if not valido:
+            raise _Validacion(detalle)
+
+        # 6) Cobertura y snapshot
+        subprocess.run(
+            [sys.executable, "scripts/audit_data.py"],
+            capture_output=True, check=False, cwd=str(Path(__file__).resolve().parent.parent),
+        )
+        snapshot = take_snapshot(session, hasta=cierre)
+        session.commit()
+
+        ultimo = session.execute(text("select max(fecha) from partidos_dt")).scalar()
+        resumen = {
+            "semana_fin": cierre.isoformat(),
+            "nuevos": carga["procesados"],
+            "descartados_sin_dt": carga["sin_dt"],
+            "correcciones": aplicadas,
+            "scrapeo": scrapeo,
+            "competencias_sin_partidos_14d": _competencias_inactivas(session, cierre),
+            "dias_desde_ultimo_partido": (date.today() - ultimo).days if ultimo else None,
+            "tiempo_recompute_s": segundos,
+            "snapshot_filas": snapshot.filas,
+            "snapshot_publicables": snapshot.publicables,
+        }
+        ejecucion = session.get(EjecucionPipeline, run_id)
+        ejecucion.estado = "ok"
+        ejecucion.terminado_en = datetime.now(timezone.utc)
+        ejecucion.resumen = resumen
+        session.commit()
+        return 0, resumen
+
+    except _Bloqueo as error:
+        _registrar_error(session, run_id, "bloqueo", {"motivo": str(error)})
+        return 10, {"error": str(error), "reintentable": True}
+    except _Validacion as error:
+        _registrar_error(session, run_id, "validacion", error.detalle)
+        return 20, {"error": "validación falló", **error.detalle}
+    except Exception as error:  # noqa: BLE001
+        _registrar_error(session, run_id, "error", {"motivo": str(error)})
+        return 30, {"error": str(error)}
+    finally:
+        session.close()
+        _liberar_lock()
+
+
+class _Bloqueo(Exception):
+    """Bloqueo externo (VPN/base): reintentable."""
+
+
+class _Validacion(Exception):
+    """Las invariantes del ELO no se cumplen: no se publica."""
+
+    def __init__(self, detalle: dict):
+        super().__init__("validación fallida")
+        self.detalle = detalle
+
+
+def _registrar_error(session, run_id, estado: str, detalle: dict) -> None:
+    from models import EjecucionPipeline
+
+    if run_id is None:
+        return
+    try:
+        ejecucion = session.get(EjecucionPipeline, run_id)
+        ejecucion.estado = estado
+        ejecucion.terminado_en = datetime.now(timezone.utc)
+        ejecucion.resumen = detalle
+        session.commit()
+    except Exception:  # noqa: BLE001 - nunca enmascarar el error original
+        session.rollback()
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def _pendiente(nombre: str) -> int:
@@ -314,7 +579,17 @@ def main(argv: list[str] | None = None) -> int:
     render_parser.add_argument("--salida", type=Path, default=None)
     render_parser.add_argument("--json", action="store_true")
 
-    for nombre in ("preflight", "update", "notify", "all"):
+    update_parser = sub.add_parser("update", help="Scraping incremental + correcciones + recálculo.")
+    update_parser.add_argument("--semana-fin", type=date.fromisoformat, default=None)
+    update_parser.add_argument("--dry-run", action="store_true",
+                               help="No descarga ni escribe: sólo verifica el entorno.")
+    update_parser.add_argument("--skip-if-done-this-week", action="store_true",
+                               help="Si ya corrió bien para esa semana, no hace nada.")
+    update_parser.add_argument("--limit", type=int, default=None,
+                               help="Máximo de reportes por competencia (pruebas).")
+    update_parser.add_argument("--json", action="store_true")
+
+    for nombre in ("preflight", "notify", "all"):
         p = sub.add_parser(nombre)
         p.add_argument("--json", action="store_true")
 
@@ -337,6 +612,34 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  sugerido: {resumen['sugerido']}")
             print(f"  carpeta: {resumen['carpeta']}")
         return 0
+
+    if args.comando == "update":
+        codigo, resumen = update(
+            cierre=args.semana_fin,
+            dry_run=args.dry_run,
+            skip_if_done=args.skip_if_done_this_week,
+            limit=args.limit,
+        )
+        if args.json:
+            print(json.dumps({"ok": codigo == 0, "codigo": codigo, **resumen}, ensure_ascii=False))
+        else:
+            if codigo == 0 and resumen.get("dry_run"):
+                print(f"preflight: {resumen['preflight']} (semana {resumen['semana_fin']})")
+            elif codigo == 0 and resumen.get("skip"):
+                print(f"nada que hacer: {resumen['motivo']}")
+            elif codigo == 0:
+                print(f"semana {resumen['semana_fin']}: {resumen['nuevos']} partidos nuevos, "
+                      f"{resumen['correcciones']} correcciones, "
+                      f"recompute {resumen['tiempo_recompute_s']}s")
+                print(f"  snapshot: {resumen['snapshot_filas']} filas "
+                      f"({resumen['snapshot_publicables']} publicables)")
+                inactivas = resumen["competencias_sin_partidos_14d"]
+                if inactivas:
+                    print(f"  sin partidos hace 14+ días: {', '.join(inactivas[:8])}"
+                          + (" ..." if len(inactivas) > 8 else ""))
+            else:
+                print(f"error (código {codigo}): {resumen.get('error')}")
+        return codigo
 
     return _pendiente(args.comando)
 

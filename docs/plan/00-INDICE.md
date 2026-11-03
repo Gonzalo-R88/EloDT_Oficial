@@ -69,9 +69,9 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [ ] | T1.10 | Decisión de la capa B | `03-fase1-modelo.md` | ⚙️ 👤 | T1.9 |
 | [x] | T2.1 | Migración de snapshots y ejecuciones | `04-fase2-incremental.md` | ⚙️ | T1.7 |
 | [x] | T2.2 | Snapshots e historial | `04-fase2-incremental.md` | ⚙️ | T2.1, T0.5 |
-| [ ] | T2.3 | Comando `update` incremental | `04-fase2-incremental.md` | 🔒 | T0.3 |
-| [ ] | T2.4 | Correcciones y recálculo | `04-fase2-incremental.md` | ⚙️ | T2.3 |
-| [ ] | T2.5 | Orquestador `weekly_run.py` | `04-fase2-incremental.md` | ⚙️ 🔒 | T2.2, T2.4 |
+| [x] | T2.3 | Comando `update` incremental | `04-fase2-incremental.md` | 🔒 | T0.3 |
+| [x] | T2.4 | Correcciones y recálculo | `04-fase2-incremental.md` | ⚙️ | T2.3 |
+| [x] | T2.5 | Orquestador `weekly_run.py` | `04-fase2-incremental.md` | ⚙️ 🔒 | T2.2, T2.4 |
 | [x] | T3.1 | Capa de datos de contenido | `05-fase3-imagenes.md` | ⚙️ | T2.2, T0.6 |
 | [x] | T3.2 | Infraestructura de render HTML | `05-fase3-imagenes.md` | ⚙️ | — |
 | [x] | T3.3 | Plantilla Top 10 | `05-fase3-imagenes.md` | ⚙️ | T3.1, T3.2 |
