@@ -570,7 +570,24 @@ def _pendiente(nombre: str) -> int:
     return 30
 
 
+def _configurar_logging() -> None:
+    """Log a archivo además de la salida estándar (n8n sólo ve el stdout)."""
+    import logging
+
+    destino = Path(settings.data_dir) / "logs"
+    destino.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(destino / "weekly.log", encoding="utf-8"),
+            logging.StreamHandler(sys.stderr),
+        ],
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
+    _configurar_logging()
     parser = argparse.ArgumentParser(description="Pipeline semanal AEP.")
     sub = parser.add_subparsers(dest="comando", required=True)
 
