@@ -1,0 +1,90 @@
+/* Paleta y tipografía de la marca AEP (violeta/lila + celeste + blanco).
+   Las fuentes viven en assets/fonts (licencia OFL); si faltan, cae a DejaVu/Sans. */
+
+@font-face {
+  font-family: "Anton";
+  src: url("../assets/fonts/Anton-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../assets/fonts/Poppins-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../assets/fonts/Poppins-Medium.ttf") format("truetype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../assets/fonts/Poppins-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../assets/fonts/Poppins-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../assets/fonts/Poppins-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+}
+
+:root {
+  --blanco: #ffffff;
+  --panel: #f5f2fe;
+  --borde: #e6e0fb;
+  --celeste: #22b8f0;
+  --celeste-claro: #7dd3fc;
+  --violeta: #8b5cf6;
+  --lila: #c4b5fd;
+  --texto: #241c4a;
+  --muted: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Poppins", "DejaVu Sans", sans-serif;
+  background: var(--blanco);
+  color: var(--texto);
+  /* El tamaño lo define el viewport de Playwright (la variante). */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.lienzo {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.barra-marca {
+  height: 12px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--celeste) 0 50%, var(--violeta) 50% 100%);
+}
+
+.titulo {
+  font-family: "Anton", "DejaVu Sans", sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.pie {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

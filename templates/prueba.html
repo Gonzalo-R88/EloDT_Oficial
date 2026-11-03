@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .contenido {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2vh;
+      padding: 6vh 8vw;
+      text-align: center;
+    }
+    .contenido .titulo { font-size: 9vh; color: var(--violeta); }
+    .contenido p { font-size: 2.4vh; color: var(--muted); max-width: 70%; }
+    .muestra {
+      margin-top: 3vh;
+      padding: 2vh 3vw;
+      border: 2px solid var(--borde);
+      border-radius: 1.2vh;
+      background: var(--panel);
+      font-weight: 600;
+    }
+    .pie { padding: 3vh 8vw; }
+  </style>
+</head>
+<body>
+  <div class="lienzo">
+    <div class="barra-marca"></div>
+    <div class="contenido">
+      <div class="titulo">{{ titulo or "Prueba de render" }}</div>
+      <p>{{ subtitulo or "Motor HTML → PNG del proyecto AEP." }}</p>
+      <div class="muestra">{{ ancho }} × {{ alto }} · {{ variante.nombre }}</div>
+    </div>
+    <div class="pie">
+      <span>AEP · Analítica de Entrenadores &amp; Performance</span>
+      <span>@AEP_Analitica</span>
+    </div>
+  </div>
+</body>
+</html>
