@@ -19,6 +19,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -414,6 +415,7 @@ def update(
     dry_run: bool = False,
     skip_if_done: bool = False,
     limit: Optional[int] = None,
+    max_minutos: Optional[int] = None,
 ) -> tuple[int, dict]:
     """Actualización semanal completa. Devuelve `(codigo_salida, resumen)`."""
     cierre = semana_fin(cierre or date.today())
@@ -466,12 +468,25 @@ def update(
         cliente = build_client()
         cliente.warm_up()
         scrapeo = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
+        presupuesto = max_minutos or 0
+        inicio_scrapeo = time.monotonic()
+        cortado_por_tiempo = False
+
         for config in COMPETITIONS.values():
+            if presupuesto and (time.monotonic() - inicio_scrapeo) / 60 >= presupuesto:
+                cortado_por_tiempo = True
+                logger.warning(
+                    "Corte por tiempo tras %.0f min; se sigue con la carga de lo bajado.",
+                    (time.monotonic() - inicio_scrapeo) / 60,
+                )
+                break
             stats = scrape_incremental(
                 config, cliente, store, semana_fin=cierre, limit=limit
             )
             for clave in scrapeo:
                 scrapeo[clave] += stats.get(clave, 0)
+            if stats["reportes"] or stats["errores"]:
+                print(f"  {config.code}: {stats}", flush=True)
 
         # 2) Carga
         carga = _cargar_nuevos(session, store, cierre)
@@ -507,6 +522,7 @@ def update(
             "descartados_sin_dt": carga["sin_dt"],
             "correcciones": aplicadas,
             "scrapeo": scrapeo,
+            "cortado_por_tiempo": cortado_por_tiempo,
             "competencias_sin_partidos_14d": _competencias_inactivas(session, cierre),
             "dias_desde_ultimo_partido": (date.today() - ultimo).days if ultimo else None,
             "tiempo_recompute_s": segundos,
@@ -604,6 +620,10 @@ def main(argv: list[str] | None = None) -> int:
                                help="Si ya corrió bien para esa semana, no hace nada.")
     update_parser.add_argument("--limit", type=int, default=None,
                                help="Máximo de reportes por competencia (pruebas).")
+    update_parser.add_argument("--max-minutos", type=int,
+                               default=int(os.getenv("TM_UPDATE_MAX_MINUTOS", "150")),
+                               help="Corta el scraping pasados N minutos y sigue con lo bajado "
+                                    "(default 150 o $TM_UPDATE_MAX_MINUTOS; 0 = sin límite).")
     update_parser.add_argument("--json", action="store_true")
 
     for nombre in ("preflight", "notify", "all"):
@@ -636,6 +656,7 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
             skip_if_done=args.skip_if_done_this_week,
             limit=args.limit,
+            max_minutos=args.max_minutos,
         )
         if args.json:
             print(json.dumps({"ok": codigo == 0, "codigo": codigo, **resumen}, ensure_ascii=False))
