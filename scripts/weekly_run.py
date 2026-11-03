@@ -23,9 +23,14 @@ from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from captions import textos_movimientos, textos_top10  # noqa: E402
+from captions import (  # noqa: E402
+    textos_duelo,
+    textos_movimientos,
+    textos_revelacion,
+    textos_top10,
+)
 from config import settings  # noqa: E402
-from content import movers, top_n  # noqa: E402
+from content import duelo_de_la_semana, movers, polilinea, revelacion, serie_elo, top_n  # noqa: E402
 from db import create_session  # noqa: E402
 from elo import MODELO_VERSION  # noqa: E402
 from render_html import TEMPLATES_DIR, render_png  # noqa: E402
@@ -69,6 +74,46 @@ def _contexto_top(session, cierre: date, pais: Optional[str], partidos: int):
         "modelo": MODELO_VERSION,
         "handle": HANDLE,
     }, None
+
+
+def _contexto_duelo(session, cierre: date, semana_texto: str):
+    duelo = duelo_de_la_semana(session, semana_fin=cierre)
+    if duelo is None:
+        return None, "no hubo partidos entre DTs publicables en la semana"
+
+    series = serie_elo(session, [duelo.dt_a_id, duelo.dt_b_id], semanas=12, hasta=cierre)
+    valores_a = [elo for _, elo in series.get(duelo.dt_a_id, [])]
+    valores_b = [elo for _, elo in series.get(duelo.dt_b_id, [])]
+    todos = valores_a + valores_b
+    ancho, alto = 1000, 220
+    grafico = {
+        "ancho": ancho,
+        "alto": alto,
+        "semanas": 12,
+        "puntos_a": polilinea(valores_a, ancho, alto, min(todos), max(todos)) if valores_a else "",
+        "puntos_b": polilinea(valores_b, ancho, alto, min(todos), max(todos)) if valores_b else "",
+    }
+    contexto = {
+        "titulo": "DUELO DE PIZARRAS",
+        "subtitulo": f"Semana {semana_texto}",
+        "duelo": duelo,
+        "grafico": grafico,
+        "handle": HANDLE,
+    }
+    return contexto, None
+
+
+def _contexto_revelacion(session, cierre: date, semana_texto: str):
+    entrada = revelacion(session, semana_fin=cierre)
+    if entrada is None:
+        return None, "nadie con menos de 2 años de carrera y 15+ partidos publicables"
+    contexto = {
+        "titulo": "DT REVELACIÓN",
+        "subtitulo": f"Semana {semana_texto}",
+        "entrada": entrada,
+        "handle": HANDLE,
+    }
+    return contexto, None
 
 
 def _contexto_movimientos(session, cierre: date, pais: Optional[str]):
@@ -150,13 +195,29 @@ def render(
                     contexto["subidas"], contexto["bajadas"], semana_texto, partidos=partidos
                 )
 
-        # Duelo y revelación: plantillas pendientes (T3.5 y T3.6).
-        for formato, plantilla, tarea in (
-            ("duelo", "duelo.html", "T3.5"),
-            ("revelacion", "revelacion.html", "T3.6"),
-        ):
-            if not (TEMPLATES_DIR / plantilla).exists():
-                omitidos.append({"formato": formato, "motivo": f"plantilla pendiente ({tarea})"})
+        # Duelo de la semana
+        contexto, motivo = _contexto_duelo(session, cierre, semana_texto)
+        if motivo:
+            omitidos.append({"formato": "duelo", "motivo": motivo})
+        elif not (TEMPLATES_DIR / "duelo.html").exists():
+            omitidos.append({"formato": "duelo", "motivo": "plantilla pendiente (T3.5)"})
+        else:
+            archivos = _renderizar_variantes("duelo.html", contexto, destino, "duelo", variantes, omitidos)
+            if archivos:
+                formatos.append({"formato": "duelo", "archivos": archivos})
+                textos["duelo"] = textos_duelo(contexto["duelo"], semana_texto)
+
+        # DT revelación
+        contexto, motivo = _contexto_revelacion(session, cierre, semana_texto)
+        if motivo:
+            omitidos.append({"formato": "revelacion", "motivo": motivo})
+        elif not (TEMPLATES_DIR / "revelacion.html").exists():
+            omitidos.append({"formato": "revelacion", "motivo": "plantilla pendiente (T3.6)"})
+        else:
+            archivos = _renderizar_variantes("revelacion.html", contexto, destino, "revelacion", variantes, omitidos)
+            if archivos:
+                formatos.append({"formato": "revelacion", "archivos": archivos})
+                textos["revelacion"] = textos_revelacion(contexto["entrada"], semana_texto)
 
         sugerido = _formato_sugerido(cierre)
         if sugerido not in textos:

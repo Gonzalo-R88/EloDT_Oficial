@@ -183,3 +183,38 @@ def textos_duelo(
 
 def hashtags_linea() -> str:
     return f"{HASHTAGS}\n{FUENTE}"
+
+
+def textos_revelacion(entrada, semana_texto: str, handle: str = HANDLE) -> Textos:
+    """Textos para el "DT revelación"."""
+    nombre = getattr(entrada, "dt", "DT")
+    club = getattr(entrada, "club", "") or ""
+    elo = getattr(entrada, "elo", 0.0)
+    pj = getattr(entrada, "pj", 0)
+    variacion = getattr(entrada, "variacion", 0.0)
+    desde = getattr(entrada, "desde_primera_fecha", None)
+    desde_texto = desde.strftime("%d/%m/%Y") if desde else "hace poco"
+
+    linkedin = (
+        f"DT revelación — {semana_texto}\n\n"
+        f"{nombre} ({club}) lleva {pj} partidos desde {desde_texto} y ya suma "
+        f"{int(round(elo))} puntos de ELO"
+        + (f" (+{variacion:.1f} en los últimos 90 días)." if variacion else ".")
+        + "\n\n"
+        "El ranking mira resultados y contexto: no premia al que más partidos jugó, sino "
+        "al que sostuvo mejores resultados frente a rivales más exigentes.\n\n"
+        f"¿Lo tenías en el radar?\n\n{HASHTAGS}\n{FUENTE}"
+    )
+    x = _recortar(
+        f"🔎 DT revelación: {nombre} ({club}) con {int(round(elo))} de ELO tras {pj} "
+        f"partidos. ELO propio. {handle}"
+    )
+    instagram = (
+        f"🔎 DT revelación — {semana_texto}\n\n{nombre} ({club})\n"
+        f"{int(round(elo))} de ELO · {pj} partidos\n\n{HASHTAGS}\n{FUENTE}"
+    )
+    alt = (
+        f"Gráfico del DT revelación: {nombre}, de {club}, con {int(round(elo))} puntos "
+        f"de ELO en {pj} partidos."
+    )
+    return Textos(linkedin=linkedin, x=x, instagram=instagram, alt=alt)

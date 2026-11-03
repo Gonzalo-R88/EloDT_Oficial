@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .cuerpo {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 2vh 8vw;
+      gap: 2.4vh;
+      min-height: 0;
+    }
+    .etiqueta {
+      font-size: 2.1vh; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--celeste);
+    }
+    .nombre {
+      font-family: "Anton", sans-serif;
+      font-size: 8vh; line-height: 0.95; color: var(--texto);
+      text-transform: uppercase;
+    }
+    .club { font-size: 2.6vh; color: var(--violeta); font-weight: 600; }
+
+    .tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2vw; margin-top: 1.4vh; }
+    .tarjeta {
+      background: var(--panel); border: 1px solid var(--borde);
+      border-radius: 1.6vh; padding: 2.2vh 2vw; text-align: center;
+    }
+    .tarjeta .valor {
+      font-family: "Anton", sans-serif; font-size: 6vh; color: var(--celeste);
+    }
+    .tarjeta .valor.acento { color: var(--violeta); }
+    .tarjeta .rotulo {
+      font-size: 1.6vh; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .nota { font-size: 1.9vh; color: var(--muted); line-height: 1.45; }
+
+    .pie { padding: 1.4vh 7vw 2.2vh; font-size: 1.7vh; }
+
+    body.variante-landscape .nombre { font-size: 12vh; }
+    body.variante-landscape .tarjeta .valor { font-size: 8vh; }
+  </style>
+</head>
+<body class="variante-{{ variante.nombre }}">
+  <div class="lienzo">
+    <div class="barra-marca"></div>
+
+    <div class="cuerpo">
+      <div class="etiqueta">DT revelación · {{ subtitulo }}</div>
+      <div class="nombre">{{ entrada.dt }}</div>
+      <div class="club">{{ entrada.club or "" }}{% if entrada.etiqueta %} · {{ entrada.etiqueta }}{% endif %}</div>
+
+      <div class="tarjetas">
+        <div class="tarjeta">
+          <div class="valor">{{ entrada.elo | round | int }}</div>
+          <div class="rotulo">ELO actual</div>
+        </div>
+        <div class="tarjeta">
+          <div class="valor acento">{% if entrada.variacion > 0 %}+{% endif %}{{ ("%.1f" | format(entrada.variacion)) | replace(".", ",") }}</div>
+          <div class="rotulo">En 90 días</div>
+        </div>
+        <div class="tarjeta">
+          <div class="valor">{{ entrada.pj }}</div>
+          <div class="rotulo">Partidos</div>
+        </div>
+      </div>
+
+      <div class="nota">
+        Empezó a dirigir en {{ entrada.desde_primera_fecha.strftime("%d/%m/%Y") }}:
+        menos de dos años de carrera y ya está entre los primeros de su liga.
+      </div>
+    </div>
+
+    <div class="pie">
+      <span>ELO propio · datos: Transfermarkt</span>
+      <span>{{ handle }}</span>
+    </div>
+  </div>
+</body>
+</html>

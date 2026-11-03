@@ -1,6 +1,7 @@
 """Tests de las plantillas de imagen (`templates/`)."""
 
 from dataclasses import replace
+from datetime import date
 
 import pytest
 
@@ -105,3 +106,122 @@ def test_sin_variacion_no_dibuja_flecha():
 
     # Las entradas 1 y 2 tienen puesto_previo, la 3 también; forzamos una sin previo.
     assert "▲" in html or "▼" in html or "=" in html
+
+
+# ---------------------------------------------------------------------------
+# Subidas y bajadas (T3.4)
+# ---------------------------------------------------------------------------
+def _movimientos():
+    from content import EntradaMovimiento
+
+    return EntradaMovimiento(
+        dt_id=1, dt="Guillermo Barros Schelotto", club="CA Vélez Sarsfield",
+        pais="Argentina", elo=1150.0, delta=12.75, partidos=1, etiqueta=None,
+    )
+
+
+def _contexto_movimientos():
+    entrada = _movimientos()
+    interino = replace(entrada, dt="DT Interino", etiqueta="interino", delta=3.5)
+    return {
+        "titulo": "SUBIERON Y CAYERON",
+        "subtitulo": "Semana del 26 de octubre al 1 de noviembre de 2026",
+        "subidas": [entrada, interino],
+        "bajadas": [replace(entrada, dt="DT Que Baja", delta=-9.4)],
+        "partidos": 5,
+        "handle": "@AEP_Analitica",
+    }
+
+
+@pytest.mark.parametrize("nombre", ["portrait", "landscape", "square"])
+def test_movers_renderiza_las_tres_variantes(tmp_path, nombre):
+    _saltar_si_no_hay_navegador()
+
+    salida = tmp_path / f"movers_{nombre}.png"
+    render_png("movers.html", _contexto_movimientos(), salida, nombre)
+
+    assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
+    assert tamano_bytes(salida) < 1_500_000
+
+
+def test_movers_muestra_la_etiqueta_del_interino():
+    html = renderizar_html("movers.html", _contexto_movimientos(), "portrait")
+
+    assert "interino" in html
+    assert "+12,75" in html  # coma decimal
+
+
+# ---------------------------------------------------------------------------
+# Duelo (T3.5) y revelación (T3.6)
+# ---------------------------------------------------------------------------
+def _contexto_duelo():
+    from duel import Duel, DuelSide
+
+    def lado(dt_id, nombre, club, elo, forma):
+        return DuelSide(
+            dt_id=dt_id, nombre=nombre, apellido=nombre.split()[-1], club=club,
+            elo_actual=elo, partidos=100, victorias=50, empates=30, derrotas=20,
+            goles_favor=150, goles_contra=100, forma=forma,
+        )
+
+    duelo = Duel(
+        a=lado(1, "Nicolás Diez", "Argentinos Juniors", 1138.0, ("V", "E", "D")),
+        b=lado(2, "Alfredo Berti", "Independiente Rivadavia", 1141.0, ("D", "V", "V")),
+        enfrentamientos=6, victorias_a=1, empates=2, victorias_b=3,
+        desde=date(2025, 3, 1), hasta=date(2026, 10, 27),
+    )
+    from content import DueloSemana
+
+    return {
+        "titulo": "DUELO DE PIZARRAS",
+        "subtitulo": "Semana del 26 de octubre al 1 de noviembre de 2026",
+        "duelo": DueloSemana(
+            fecha=date(2026, 10, 27), competencia="ARGC", dt_a_id=1, dt_b_id=2,
+            club_a="Argentinos Juniors", club_b="Independiente Rivadavia",
+            elo_a=1138.0, elo_b=1141.0, resultado="1-0", duelo=duelo,
+        ),
+        "grafico": {
+            "ancho": 1000, "alto": 220, "semanas": 12,
+            "puntos_a": "10,10 500,120 990,200",
+            "puntos_b": "10,200 500,120 990,10",
+        },
+        "handle": "@AEP_Analitica",
+    }
+
+
+@pytest.mark.parametrize("nombre", ["portrait", "landscape"])
+def test_duelo_renderiza_y_no_duplica_el_nombre(tmp_path, nombre):
+    _saltar_si_no_hay_navegador()
+
+    salida = tmp_path / f"duelo_{nombre}.png"
+    render_png("duelo.html", _contexto_duelo(), salida, nombre)
+
+    html = renderizar_html("duelo.html", _contexto_duelo(), nombre)
+    assert "Nicolás Diez" in html
+    assert "Nicolás Diez Diez" not in html
+    assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
+
+
+def _contexto_revelacion():
+    from content import Revelacion
+
+    return {
+        "titulo": "DT REVELACIÓN",
+        "subtitulo": "Semana del 26 de octubre al 1 de noviembre de 2026",
+        "entrada": Revelacion(
+            dt_id=1, dt="Sergej Jakirovic", club="Hull City", pais="Inglaterra",
+            elo=1115.0, pj=68, desde_primera_fecha=date(2025, 2, 1),
+            variacion=43.5, etiqueta=None,
+        ),
+        "handle": "@AEP_Analitica",
+    }
+
+
+@pytest.mark.parametrize("nombre", ["portrait", "square"])
+def test_revelacion_renderiza(tmp_path, nombre):
+    _saltar_si_no_hay_navegador()
+
+    salida = tmp_path / f"revelacion_{nombre}.png"
+    render_png("revelacion.html", _contexto_revelacion(), salida, nombre)
+
+    assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)

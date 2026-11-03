@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .cabecera { padding: 3.2vh 7vw 1.4vh; }
+    .cabecera .titulo { font-size: 6.2vh; color: var(--texto); }
+    .cabecera .subtitulo {
+      font-size: 2.1vh; color: var(--violeta); font-weight: 600;
+      letter-spacing: 0.02em; text-transform: uppercase; margin-top: 0.8vh;
+    }
+
+    .paneles {
+      flex: 1;
+      padding: 1vh 6vw;
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 1.6vh;
+      min-height: 0;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--borde);
+      border-radius: 1.6vh;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .panel-titulo {
+      font-family: "Anton", sans-serif;
+      font-size: 2.8vh;
+      letter-spacing: 0.05em;
+      padding: 1.1vh 2.4vw;
+      color: var(--blanco);
+      text-transform: uppercase;
+    }
+    .panel.sube .panel-titulo { background: var(--celeste); }
+    .panel.baja .panel-titulo { background: var(--violeta); }
+    .lista { flex: 1; display: grid; grid-auto-rows: 1fr; min-height: 0; }
+    .item {
+      display: flex; align-items: center; gap: 2vw;
+      padding: 0 2.4vw;
+      border-top: 1px solid var(--borde);
+      min-width: 0;
+    }
+    .item:first-child { border-top: 0; }
+    .item .datos { flex: 1; min-width: 0; }
+    .item .dt {
+      font-size: 2.1vh; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .item .club {
+      font-size: 1.5vh; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .item .marca {
+      font-size: 1.2vh; font-weight: 600; color: var(--lila);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .item .delta {
+      font-family: "Anton", sans-serif; font-size: 2.6vh; min-width: 13vw; text-align: right;
+    }
+    .panel.sube .delta { color: var(--celeste); }
+    .panel.baja .delta { color: var(--violeta); }
+    .item .elo { font-size: 1.4vh; color: var(--muted); min-width: 7vw; text-align: right; }
+
+    .pie { padding: 1.4vh 7vw 2.2vh; font-size: 1.7vh; }
+
+    body.variante-landscape .paneles {
+      grid-template-rows: 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: 2vw;
+    }
+    body.variante-landscape .cabecera .titulo { font-size: 8vh; }
+  </style>
+</head>
+<body class="variante-{{ variante.nombre }}">
+  <div class="lienzo">
+    <div class="barra-marca"></div>
+
+    <div class="cabecera">
+      <div class="titulo">{{ titulo }}</div>
+      <div class="subtitulo">{{ subtitulo }}</div>
+    </div>
+
+    <div class="paneles">
+      {% for lado, entradas, clase in [("Subieron", subidas, "sube"), ("Cayeron", bajadas, "baja")] %}
+      <div class="panel {{ clase }}">
+        <div class="panel-titulo">{{ lado }}</div>
+        <div class="lista">
+          {% for e in entradas %}
+          <div class="item">
+            <div class="datos">
+              <div class="dt">{{ e.dt }}</div>
+              <div class="club">{{ e.club or "—" }}</div>
+              {% if e.etiqueta %}<div class="marca">{{ e.etiqueta }}</div>{% endif %}
+            </div>
+            <div class="delta">{% if e.delta > 0 %}+{% endif %}{{ ("%.2f" | format(e.delta)) | replace(".", ",") }}</div>
+            <div class="elo">{{ e.elo | round | int }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="pie">
+      <span>{{ partidos }} partidos analizados · ELO propio · datos: Transfermarkt</span>
+      <span>{{ handle }}</span>
+    </div>
+  </div>
+</body>
+</html>

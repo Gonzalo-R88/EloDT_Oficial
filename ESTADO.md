@@ -421,6 +421,27 @@
 
 Seguir el plan `docs/plan/00-INDICE.md`, una tarea por sesión. Próximas:
 
+## Sesión 2026-11-02/03 — imágenes y snapshots
+
+**T2.1/T2.2 (snapshots):** migración 004 (`snapshots_elo` + `ejecuciones_pipeline`),
+`snapshots.py` y `backfill_snapshots.py`. **52 snapshots semanales** (86.397 filas); el
+último coincide exactamente con `entrenadores.elo_actual`.
+
+**T3.1 a T3.8 (contenido e imágenes):**
+- `content.py`: `top_n` (uno por club con su DT actual y ▲▼ vs el snapshot previo),
+  `top_por_pais`, `movers` (interinos etiquetados), `duelo_de_la_semana`,
+  `revelacion` (menos de 2 años y mayor suba en 90 días) y `serie_elo`/`polilinea`
+  para el gráfico del duelo.
+- `render_html.py`: Jinja2 + Chromium; variantes portrait/landscape/square/story;
+  **falla si el contenido no entra en el lienzo** (una imagen cortada no se publica).
+- Plantillas: `top10.html`, `movers.html`, `duelo.html` (con gráfico SVG) y
+  `revelacion.html`, sobre `base.css` (paleta y fuentes de la marca).
+- `captions.py`: LinkedIn / X (≤280 con recorte) / Instagram / alt text.
+- `scripts/weekly_run.py render`: genera `data/output/YYYY-Www/` con 15 PNG (5 formatos
+  × 3 variantes), `post.md` y `summary.json`; rota el formato sugerido por semana ISO.
+  `preflight`/`update`/`notify`/`all` quedan para las fases 2 y 4.
+- 159 tests verdes.
+
 **Corte por tormenta (2026-10-29 ~21:00):** el backfill de eliminatorias + Nations
 League quedó **pausado a propósito** (procesos detenidos, caché íntegro: 0 JSON
 corruptos, base en 205.069 partidos con masa 7.082.000 OK). Reanudar con:

@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -266,6 +266,70 @@ def movers(
         bajadas=_filtrar(ranking.bajadas)[:n],
         total_partidos=ranking.total_partidos,
     )
+
+
+def polilinea(
+    valores: Sequence[float],
+    ancho: float = 1000,
+    alto: float = 220,
+    minimo: Optional[float] = None,
+    maximo: Optional[float] = None,
+    margen: float = 10,
+) -> str:
+    """Convierte una serie de ELO en los puntos de un `<polyline>` SVG.
+
+    Normaliza al rango `[minimo, maximo]` (por defecto, el de la propia serie) y deja
+    margen para que el trazo no se corte. Devuelve `"x1,y1 x2,y2 ..."`.
+    """
+    if not valores:
+        return ""
+    minimo = min(valores) if minimo is None else minimo
+    maximo = max(valores) if maximo is None else maximo
+    if maximo <= minimo:
+        maximo = minimo + 1.0
+
+    util_alto = alto - 2 * margen
+    util_ancho = ancho - 2 * margen
+    paso = util_ancho / (len(valores) - 1) if len(valores) > 1 else 0.0
+
+    puntos = []
+    for indice, valor in enumerate(valores):
+        x = margen + indice * paso
+        proporcion = (valor - minimo) / (maximo - minimo)
+        y = alto - margen - proporcion * util_alto
+        puntos.append(f"{x:.1f},{y:.1f}")
+    return " ".join(puntos)
+
+
+def serie_elo(
+    session: Session,
+    dt_ids: Sequence[int],
+    semanas: int = 12,
+    hasta: Optional[date] = None,
+) -> dict[int, list[tuple[date, float]]]:
+    """Serie semanal de ELO de uno o más DTs (para el gráfico del duelo).
+
+    Sale de `snapshots_elo`; si un DT no tiene snapshot en una semana, se saltea ese
+    punto. Devuelve `{dt_id: [(semana, elo), ...]}` ordenado por fecha.
+    """
+    from models import SnapshotElo
+
+    cierre = _cierre(hasta)
+    desde = cierre - timedelta(weeks=semanas - 1)
+    filas = session.execute(
+        select(SnapshotElo.dt_id, SnapshotElo.semana_fin, SnapshotElo.elo)
+        .where(
+            SnapshotElo.dt_id.in_(list(dt_ids)),
+            SnapshotElo.semana_fin >= desde,
+            SnapshotElo.semana_fin <= cierre,
+        )
+        .order_by(SnapshotElo.dt_id, SnapshotElo.semana_fin)
+    ).all()
+
+    series: dict[int, list[tuple[date, float]]] = {dt: [] for dt in dt_ids}
+    for dt_id, fecha, elo in filas:
+        series.setdefault(dt_id, []).append((fecha, float(elo)))
+    return series
 
 
 # ---------------------------------------------------------------------------
