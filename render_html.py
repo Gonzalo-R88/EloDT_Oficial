@@ -75,8 +75,13 @@ def render_png(
     variante_nombre: str = "portrait",
     base_dir: Optional[Path] = None,
     escala: float = 1.0,
+    estricto: bool = True,
 ) -> Path:
-    """Renderiza la plantilla y guarda un PNG del tamaño exacto de la variante."""
+    """Renderiza la plantilla y guarda un PNG del tamaño exacto de la variante.
+
+    Con `estricto=True` (por defecto) falla si el contenido no entra en el lienzo: una
+    imagen con texto cortado no se publica.
+    """
     from playwright.sync_api import sync_playwright
 
     tamaño = variante(variante_nombre)
@@ -102,6 +107,27 @@ def render_png(
             # Sin esto la captura puede salir con la tipografía de reemplazo.
             pagina.evaluate("document.fonts.ready.then(() => true)")
             pagina.wait_for_timeout(150)
+
+            if estricto:
+                medida = pagina.evaluate(
+                    """() => ({
+                        alto: document.documentElement.scrollHeight,
+                        altoVisible: document.documentElement.clientHeight,
+                        ancho: document.documentElement.scrollWidth,
+                        anchoVisible: document.documentElement.clientWidth,
+                    })"""
+                )
+                if (
+                    medida["alto"] > medida["altoVisible"] + 1
+                    or medida["ancho"] > medida["anchoVisible"] + 1
+                ):
+                    raise ValueError(
+                        f"El contenido no entra en {tamaño.nombre} "
+                        f"({tamaño.ancho}x{tamaño.alto}): "
+                        f"{medida['ancho']}x{medida['alto']} contra "
+                        f"{medida['anchoVisible']}x{medida['altoVisible']}."
+                    )
+
             pagina.screenshot(path=str(destino), full_page=False)
             navegador.close()
     finally:
