@@ -30,6 +30,9 @@ class CompetitionConfig:
     # el `saison_id` del año anterior (ej. la temporada 2024 usa saison_id 2023).
     # El offset convierte el año real de temporada al `saison_id` de la URL.
     saison_offset: int = 0
+    # Última temporada que existe en TM (None = sigue vigente). Sirve para que la
+    # actualización semanal no pida competencias que ya cerraron (AR1N, CDLP).
+    last_season: Optional[int] = None
 
 
 # Niveles y coeficientes según el documento maestro v1.
@@ -38,7 +41,7 @@ COMPETITIONS: dict[str, CompetitionConfig] = {
     "AR1N": CompetitionConfig(
         code="AR1N", slug="primera-division", name="Liga Profesional",
         country="Argentina", tier="A", coefficient=1.00, kind="liga",
-        path="wettbewerb", saison_offset=1,
+        path="wettbewerb", saison_offset=1, last_season=2024,
     ),
     "ARG2": CompetitionConfig(
         code="ARG2", slug="primera-nacional", name="Primera Nacional",
@@ -49,6 +52,7 @@ COMPETITIONS: dict[str, CompetitionConfig] = {
         code="CDLP", slug="copa-de-la-liga-profesional-de-futbol",
         name="Copa de la Liga Profesional", country="Argentina", tier="B",
         coefficient=0.80, kind="copa", path="wettbewerb", saison_offset=1,
+        last_season=2024,
     ),
     "CDCA": CompetitionConfig(
         code="CDCA", slug="copa-diego-armando-maradona-fase-campeon",
@@ -118,6 +122,7 @@ def _register_catalog() -> None:
             kind=candidate.kind,
             path=candidate.path,
             saison_offset=candidate.saison_offset,
+            last_season=candidate.last_season,
         )
 
 

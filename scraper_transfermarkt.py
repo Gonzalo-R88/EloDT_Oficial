@@ -118,6 +118,37 @@ def cmd_scrape(args: argparse.Namespace) -> None:
             print(f"[scrape] {config.code} {season}: {len(fixtures)} partidos en fixture.")
 
 
+def cmd_update(args: argparse.Namespace) -> None:
+    """Baja sólo los partidos nuevos de las temporadas en curso (actualización semanal)."""
+    from datetime import date as _date
+
+    from scraping.pipeline import scrape_incremental
+
+    client = None if args.dry_run else build_client()
+    if client is not None:
+        client.warm_up()
+    store = RawStore(settings.data_dir)
+
+    semana_fin = args.semana_fin
+    total = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
+    for config in resolve_competitions(args):
+        try:
+            stats = scrape_incremental(
+                config, client, store,
+                semana_fin=semana_fin, dry_run=args.dry_run, limit=args.limit,
+            )
+        except RuntimeError as exc:
+            logging.warning("[update] %s falló: %s", config.code, exc)
+            total["errores"] += 1
+            continue
+        for clave, valor in stats.items():
+            total[clave] = total.get(clave, 0) + valor
+        print(f"[update] {config.code}: {stats}")
+
+    modo = " (dry-run: sólo cuenta fixtures)" if args.dry_run else ""
+    print(f"[update] TOTAL{modo}: {total}")
+
+
 def cmd_load(args: argparse.Namespace) -> None:
     store = RawStore(settings.data_dir)
     for config in resolve_competitions(args):
@@ -180,6 +211,19 @@ def build_parser() -> argparse.ArgumentParser:
     sub_ingest.add_argument("--refresh", action="store_true", help="Ignora la caché y vuelve a descargar.")
     sub_ingest.add_argument("--limit", type=int, default=None, help="Máximo de reportes a descargar (pruebas).")
     sub_ingest.set_defaults(func=cmd_ingest)
+
+    sub_update = subparsers.add_parser(
+        "update", help="Baja sólo los partidos nuevos de las temporadas en curso."
+    )
+    add_common(sub_update)
+    sub_update.add_argument("--semana-fin", type=lambda v: __import__("datetime").date.fromisoformat(v),
+                            default=None,
+                            help="Sólo se descargan partidos con fecha <= esta (YYYY-MM-DD).")
+    sub_update.add_argument("--limit", type=int, default=None,
+                            help="Máximo de reportes por competencia (pruebas).")
+    sub_update.add_argument("--dry-run", action="store_true",
+                            help="No descarga: informa cuántos fixtures pediría.")
+    sub_update.set_defaults(func=cmd_update)
 
     sub_recompute = subparsers.add_parser("recompute", help="Recalcula el ELO desde cero.")
     sub_recompute.set_defaults(func=cmd_recompute)

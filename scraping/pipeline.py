@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict
+from datetime import date
 from typing import Optional
 
 from sqlalchemy import select
@@ -123,6 +124,203 @@ def scrape_season(
         )
 
     return fixtures
+
+
+# ---------------------------------------------------------------------------
+# Actualización incremental (semanal)
+# ---------------------------------------------------------------------------
+# Cuántos años hacia atrás se piden las ediciones de selecciones (no siguen un
+# `saison_id` fijo: el de las eliminatorias de un Mundial es el año del Mundial menos 4).
+ANIOS_SELECCIONES = 4
+
+
+def temporadas_en_curso(config: CompetitionConfig, hoy: date) -> list[int]:
+    """Temporadas que pueden tener partidos nuevos hoy, para una competencia.
+
+    - Selecciones: se piden los últimos años y se descartan los `saison_id` que TM
+      resuelve a otra edición (ver `scrape_selecciones`).
+    - Ligas europeas (`saison_offset=0`): la temporada arranca en julio, así que en
+      enero la temporada en curso empezó el año anterior.
+    - Ligas de año calendario (`saison_offset=1`): el año actual y el anterior (por
+      partidos postergados).
+    """
+    if config.kind == "selecciones":
+        return list(range(hoy.year - ANIOS_SELECCIONES, hoy.year + 1))
+    if config.saison_offset == 0:
+        inicio = hoy.year if hoy.month >= 7 else hoy.year - 1
+        return [inicio, inicio - 1]
+    return [hoy.year, hoy.year - 1]
+
+
+def temporada_cerrada(config: CompetitionConfig, hoy: date) -> bool:
+    """True si la competencia ya no se juega (por ejemplo AR1N, que cerró en 2024)."""
+    ultima = getattr(config, "last_season", None)
+    return ultima is not None and hoy.year > ultima + 1
+
+
+def _fecha_ok(fixture: Fixture, semana_fin: Optional[date]) -> bool:
+    """Si el partido entra en la ventana a publicar (sin fecha, se incluye)."""
+    if semana_fin is None or not fixture.date:
+        return True
+    return fixture.date[:10] <= semana_fin.isoformat()
+
+
+def scrape_incremental(
+    config: CompetitionConfig,
+    client: TransfermarktClient,
+    store: RawStore,
+    semana_fin: Optional[date] = None,
+    hoy: Optional[date] = None,
+    dry_run: bool = False,
+    limit: Optional[int] = None,
+) -> dict[str, int]:
+    """Baja el fixture de las temporadas en curso y **sólo** los reportes que faltan.
+
+    A diferencia de `scrape_season(..., refresh=True)`, nunca vuelve a pedir un
+    reporte ya cacheado: el `--refresh` global re-descargaba temporadas enteras y
+    fue una de las causas de los baneos. El fixture sí se refresca siempre (1 request
+    por temporada): es la forma de descubrir los partidos nuevos.
+    """
+    referencia = hoy or date.today()
+    stats = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
+
+    if temporada_cerrada(config, referencia):
+        return stats
+
+    if config.kind == "selecciones":
+        # El `saison_id` de las selecciones no sigue una regla fija y, si no existe,
+        # TM devuelve la última edición. Se piden varios años y se descarta la
+        # respuesta repetida (igual que `scripts/scrape_ediciones.py`).
+        return _scrape_selecciones(
+            config, client, store, semana_fin=semana_fin,
+            hoy=referencia, dry_run=dry_run, limit=limit,
+        )
+
+    for season in temporadas_en_curso(config, referencia):
+        url = build_schedule_url(config, season)
+        stats["fixtures"] += 1
+        if dry_run:
+            continue
+        try:
+            html = client.get(url, referer=f"https://{settings.transfermarkt_domain}/")
+            fixtures = parse_schedule(html, config.code, season)
+        except Exception as error:  # noqa: BLE001 - una temporada no corta el lote
+            logger.warning("[%s %s] no se pudo bajar el fixture: %s", config.code, season, error)
+            stats["errores"] += 1
+            continue
+        if not fixtures:
+            continue
+        if not season_is_aligned(fixtures, season):
+            logger.info(
+                "[%s %s] TM devolvió otra temporada (o ya no existe); se omite.",
+                config.code, season,
+            )
+            continue
+
+        # El fixture se refresca siempre, sin tocar los reportes cacheados.
+        store.write_fixtures(config.code, season, [asdict(f) for f in fixtures])
+
+        pendientes = []
+        for fixture in fixtures:
+            if store.has_match(config.code, season, fixture.match_id):
+                continue
+            if not _fecha_ok(fixture, semana_fin):
+                stats["omitidos_fecha"] += 1
+                continue
+            pendientes.append(fixture)
+        if limit is not None:
+            pendientes = pendientes[:limit]
+
+        for fixture in pendientes:
+            try:
+                reporte = parse_match_report(
+                    client.get(build_match_url(fixture.match_id), referer=url),
+                    fixture.match_id,
+                )
+            except Exception as error:  # noqa: BLE001
+                logger.warning("  partido %s: %s", fixture.match_id, error)
+                stats["errores"] += 1
+                continue
+            store.write_match(config.code, season, fixture.match_id, asdict(reporte))
+            stats["reportes"] += 1
+
+    logger.info(
+        "[%s] fixtures=%s reportes=%s omitidos_por_fecha=%s errores=%s",
+        config.code, stats["fixtures"], stats["reportes"],
+        stats["omitidos_fecha"], stats["errores"],
+    )
+    return stats
+
+
+def _scrape_selecciones(
+    config: CompetitionConfig,
+    client: TransfermarktClient,
+    store: RawStore,
+    semana_fin: Optional[date],
+    hoy: date,
+    dry_run: bool = False,
+    limit: Optional[int] = None,
+) -> dict[str, int]:
+    """Incremental de una competencia de selecciones (ediciones con `saison_id` irregular)."""
+    stats = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
+    vistas: set[tuple[int, ...]] = set()
+
+    for saison_id in range(hoy.year - ANIOS_SELECCIONES, hoy.year + 1):
+        url = (
+            f"https://{settings.transfermarkt_domain}/{config.slug}/gesamtspielplan/"
+            f"{config.path}/{config.code}?saison_id={saison_id}"
+            f"&spieltagVon=1&spieltagBis=99"
+        )
+        stats["fixtures"] += 1
+        if dry_run:
+            continue
+        try:
+            fixtures = parse_schedule(
+                client.get(url, referer=f"https://{settings.transfermarkt_domain}/"),
+                config.code, saison_id,
+            )
+        except Exception as error:  # noqa: BLE001
+            logger.warning("[%s] saison_id=%s: %s", config.code, saison_id, error)
+            stats["errores"] += 1
+            continue
+        if not fixtures:
+            continue
+        clave = tuple(sorted(f.match_id for f in fixtures))
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+
+        fechas = sorted(f.date for f in fixtures if f.date)
+        if not fechas:
+            continue
+        anio = int(fechas[0][:4])
+        store.write_fixtures(config.code, anio, [asdict(f) for f in fixtures])
+
+        pendientes = [
+            f for f in fixtures
+            if not store.has_match(config.code, anio, f.match_id)
+            and _fecha_ok(f, semana_fin)
+        ]
+        if limit is not None:
+            pendientes = pendientes[:limit]
+        for fixture in pendientes:
+            try:
+                reporte = parse_match_report(
+                    client.get(build_match_url(fixture.match_id), referer=url),
+                    fixture.match_id,
+                )
+            except Exception as error:  # noqa: BLE001
+                logger.warning("  partido %s: %s", fixture.match_id, error)
+                stats["errores"] += 1
+                continue
+            store.write_match(config.code, anio, fixture.match_id, asdict(reporte))
+            stats["reportes"] += 1
+
+    logger.info(
+        "[%s] (selecciones) fixtures=%s reportes=%s errores=%s",
+        config.code, stats["fixtures"], stats["reportes"], stats["errores"],
+    )
+    return stats
 
 
 # ---------------------------------------------------------------------------

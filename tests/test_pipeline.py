@@ -191,3 +191,156 @@ def test_build_schedule_url_uses_query_string():
     assert url.startswith("https://")
     assert "copa-libertadores/gesamtspielplan/pokalwettbewerb/CLI?" in url
     assert "saison_id=2020" in url
+
+
+# ---------------------------------------------------------------------------
+# Actualización incremental (T2.3)
+# ---------------------------------------------------------------------------
+from datetime import date  # noqa: E402
+
+from scraping.competitions import CompetitionConfig  # noqa: E402
+from scraping.pipeline import (  # noqa: E402
+    scrape_incremental,
+    temporada_cerrada,
+    temporadas_en_curso,
+)
+
+
+def _config(kind="liga", offset=1, last_season=None):
+    return CompetitionConfig(
+        code="AR1N", slug="liga", name="Liga", country="Argentina",
+        tier="A", coefficient=1.0, kind=kind, saison_offset=offset,
+        last_season=last_season,
+    )
+
+
+def _html_fixture(partidos):
+    filas = []
+    for match_id, fecha, local, visita in partidos:
+        filas.append(
+            f'<tr><td class="hide-for-small">Sat <a href="/datum/{fecha}">{fecha}</a></td>'
+            f'<td class="text-right no-border-rechts hauptlink">'
+            f'<a title="{local}" href="/x/spielplan/verein/{match_id}">{local}</a></td>'
+            f'<td class="zentriert hauptlink"><a class="ergebnis-link" id="{match_id}" '
+            f'href="/spielbericht/index/spielbericht/{match_id}">1:0</a></td>'
+            f'<td class="no-border-links hauptlink">'
+            f'<a title="{visita}" href="/y/spielplan/verein/9">{visita}</a></td></tr>'
+        )
+    return f"<html><body><table><tbody>{''.join(filas)}</tbody></table></body></html>"
+
+
+def _html_reporte(fecha):
+    return (
+        f'<html><body><div class="sb-endstand">1:0</div>'
+        f'<p class="sb-datum"><a href="/datum/{fecha}">Sat, {fecha}</a></p>'
+        '<table>'
+        '<tr class="bench-table__tr"><td><a title="DT A" href="/a/profil/trainer/11">DT A</a></td></tr>'
+        '<tr class="bench-table__tr"><td><a title="DT B" href="/b/profil/trainer/22">DT B</a></td></tr>'
+        '</table></body></html>'
+    )
+
+
+class _ClienteFalso:
+    """Cliente de prueba: cuenta requests y responde según la URL."""
+
+    def __init__(self, partidos):
+        self.partidos = partidos
+        self.pedidos: list[str] = []
+
+    def get(self, url, referer=None):
+        self.pedidos.append(url)
+        if "/spielbericht/index/spielbericht/" in url:
+            match_id = int(url.rsplit("/", 1)[-1])
+            fecha = next(f for m, f, _, _ in self.partidos if m == match_id)
+            return _html_reporte(fecha)
+        return _html_fixture(self.partidos)
+
+    @property
+    def reportes_pedidos(self):
+        return [u for u in self.pedidos if "/spielbericht/index/spielbericht/" in u]
+
+
+def test_temporadas_en_curso_por_tipo_de_liga():
+    europa = _config(offset=0)
+    assert temporadas_en_curso(europa, date(2026, 3, 15)) == [2025, 2024]
+    assert temporadas_en_curso(europa, date(2026, 8, 15)) == [2026, 2025]
+
+    calendario = _config(offset=1)
+    assert temporadas_en_curso(calendario, date(2026, 3, 15)) == [2026, 2025]
+
+
+def test_temporadas_en_curso_selecciones():
+    selecciones = _config(kind="selecciones")
+    temporadas = temporadas_en_curso(selecciones, date(2026, 3, 15))
+
+    assert 2026 in temporadas
+    assert min(temporadas) <= 2022  # las eliminatorias viven en años anteriores
+
+
+def test_temporada_cerrada_respeta_last_season():
+    assert temporada_cerrada(_config(last_season=2024), date(2026, 3, 1))
+    assert not temporada_cerrada(_config(last_season=None), date(2026, 3, 1))
+
+
+def test_scrape_incremental_solo_baja_lo_que_falta(tmp_path):
+    partidos = [
+        (101, "2026-10-20", "Club A", "Club B"),
+        (102, "2026-10-21", "Club C", "Club D"),
+    ]
+    cliente = _ClienteFalso(partidos)
+    store = RawStore(tmp_path)
+    # El 101 ya estaba cacheado: no se debe volver a pedir.
+    store.write_match("AR1N", 2026, 101, {"match_id": 101, "fecha": "2026-10-20"})
+
+    stats = scrape_incremental(
+        _config(), cliente, store, semana_fin=date(2026, 11, 1), hoy=date(2026, 11, 2)
+    )
+
+    assert stats["reportes"] == 1
+    assert len(cliente.reportes_pedidos) == 1
+    assert cliente.reportes_pedidos[0].endswith("/102")
+    assert store.has_match("AR1N", 2026, 102)
+
+
+def test_scrape_incremental_respeta_la_semana_de_cierre(tmp_path):
+    partidos = [
+        (201, "2026-10-28", "Club A", "Club B"),
+        (202, "2026-11-15", "Club C", "Club D"),  # después del cierre
+    ]
+    cliente = _ClienteFalso(partidos)
+    store = RawStore(tmp_path)
+
+    stats = scrape_incremental(
+        _config(), cliente, store, semana_fin=date(2026, 11, 1), hoy=date(2026, 11, 2)
+    )
+
+    assert stats["reportes"] == 1
+    assert stats["omitidos_fecha"] == 1
+    assert store.has_match("AR1N", 2026, 201)
+    assert not store.has_match("AR1N", 2026, 202)
+
+
+def test_scrape_incremental_dry_run_no_pide_reportes(tmp_path):
+    cliente = _ClienteFalso([(301, "2026-10-20", "A", "B")])
+    store = RawStore(tmp_path)
+
+    stats = scrape_incremental(
+        _config(), cliente, store, semana_fin=date(2026, 11, 1),
+        hoy=date(2026, 11, 2), dry_run=True,
+    )
+
+    assert cliente.pedidos == []
+    assert stats["fixtures"] >= 1
+    assert stats["reportes"] == 0
+
+
+def test_scrape_incremental_saltea_competencias_cerradas(tmp_path):
+    cliente = _ClienteFalso([(401, "2026-10-20", "A", "B")])
+    store = RawStore(tmp_path)
+
+    stats = scrape_incremental(
+        _config(last_season=2024), cliente, store, hoy=date(2026, 11, 2)
+    )
+
+    assert cliente.pedidos == []
+    assert stats["fixtures"] == 0
