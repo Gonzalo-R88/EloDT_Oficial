@@ -79,7 +79,7 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [ ] | T3.5 | Plantilla Duelo | `05-fase3-imagenes.md` | ⚙️ | T3.1, T3.2 |
 | [ ] | T3.6 | Plantilla Revelación | `05-fase3-imagenes.md` | ⚙️ | T3.1, T3.2 |
 | [x] | T3.7 | Textos sugeridos | `05-fase3-imagenes.md` | ⚙️ | T3.1 |
-| [ ] | T3.8 | Subcomando `render` | `05-fase3-imagenes.md` | ⚙️ | T3.3-T3.7, T2.5 |
+| [x] | T3.8 | Subcomando `render` | `05-fase3-imagenes.md` | ⚙️ | T3.3-T3.7, T2.5 |
 | [ ] | T4.1 | Bot de Telegram y `notify.py` | `06-fase4-n8n.md` | ⚙️ 👤 | — |
 | [ ] | T4.2 | Instalar n8n en Windows | `06-fase4-n8n.md` | 👤 | T2.5 |
 | [ ] | T4.3 | Workflows de n8n | `06-fase4-n8n.md` | 👤 | T3.8, T4.1, T4.2 |
