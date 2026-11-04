@@ -642,6 +642,7 @@ def main(argv: list[str] | None = None) -> int:
     update_parser.add_argument("--json", action="store_true")
 
     notify_parser = sub.add_parser("notify", help="Envía el paquete de la semana por Telegram.")
+    notify_parser.add_argument("--semana-fin", type=date.fromisoformat, default=None)
     notify_parser.add_argument("--carpeta", type=Path, default=None,
                                help="Carpeta del paquete (default: la de la semana).")
     notify_parser.add_argument("--test", action="store_true", help="Manda sólo un mensaje de prueba.")
