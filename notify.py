@@ -116,11 +116,12 @@ def enviar_paquete(carpeta: Path | str, solo_sugerido: bool = True) -> dict:
         enviados.append(enviar_documento(archivo, caption=archivo.stem.replace("_", " ")))
 
     mensaje = _armar_mensaje(resumen, post)
-    enviados.extend(enviar_texto(mensaje))
+    mensajes_enviados = enviar_texto(mensaje)
 
     return {
+        "ok": True,
         "documentos": len(archivos),
-        "mensajes": len(enviados) - len(archivos),
+        "mensajes": len(mensajes_enviados),
         "sugerido": sugerido,
     }
 

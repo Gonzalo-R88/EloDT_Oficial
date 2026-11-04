@@ -22,19 +22,18 @@ opciones, escribila debajo de la línea para que quede el registro.
   - Cómo: cambiarla en el Postgres de Windows y después en `F:\ProyectoDT\.env` (línea
     `DB_PASS=`). No lo hace el agente porque tocar credenciales es decisión tuya.
 
-- [ ] **Crear el bot de Telegram** (se pide recién en la tarea **T4.1**, cuando haya algo
-  para enviar).
+- [x] **Crear el bot de Telegram** (hecho 2026-11-04: `AEPEloBot`; el primer token estaba
+  revocado y se regeneró).
   - Cómo: en Telegram, hablar con **@BotFather**, escribir `/newbot`, elegir nombre y
     usuario. Te da un **token**. Después escribirle algo al bot creado y obtener tu
     **chat_id** (por ejemplo con @userinfobot).
   - Qué hacer con eso: pegarlos en `.env` como `TELEGRAM_BOT_TOKEN=` y `TELEGRAM_CHAT_ID=`.
 
-- [ ] **Instalar n8n en Windows** (se pide en **T4.2**; hoy no está instalado y no hay
-  Docker).
-  - Se usa el Node que ya tenés en `F:\Doom\LLM\node.exe` (v24). Si n8n no lo acepta, se
-    instala Node 22 LTS.
-  - El agente te va a dar los pasos exactos y después verifica que n8n responda y que
-    pueda ejecutar los scripts de Python.
+- [x] **Instalar n8n** (hecho 2026-11-04, pero **en Docker**, no nativo en Windows).
+  - Consecuencia: n8n no puede ejecutar el pipeline (el contenedor no ve WSL ni Python).
+    La automatización semanal quedó en el **Programador de tareas de Windows** (tarea
+    `AEP-Semanal`), que sí puede. Detalle en `docs/automatizacion_semanal.md`.
+  - Pendiente de decisión: qué hacer con los workflows de `n8n/` (quedaron inactivos).
 
 - [ ] **Confirmar VPN y tiempo antes de cada scrape grande** (más de ~500 requests).
   - Los backfills largos se corren en `tmux` y pueden tardar horas.

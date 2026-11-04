@@ -1,5 +1,19 @@
 # Fase 4: n8n y Telegram
 
+> **Estado real al 2026-11-04.** Este plan suponía n8n **nativo en Windows** (`npm install -g
+> n8n` con el Node de `F:\Doom\LLM`) y que no había Docker. Gonzalo lo instaló **en Docker
+> Desktop** (contenedor `n8n`, `n8nio/n8n:latest`, puerto 5678).
+>
+> Un contenedor no ve el host: `docker exec n8n sh -c "command -v wsl.exe"` y `command -v
+> python3` fallan dentro de la imagen, y el nodo `n8n-nodes-base.executeCommand` está
+> excluido por defecto (`Unrecognized node type`). Por eso **n8n no puede disparar el
+> pipeline**.
+>
+> Lo implementado es la **tarea `AEP-Semanal` del Programador de tareas de Windows**, que sí
+> ejecuta `wsl.exe`; ver `docs/automatizacion_semanal.md`. T4.1 (Telegram) se completó;
+> T4.2/T4.3 se escribieron como código pero quedaron inactivos; **T4.4 se resolvió con el
+> disparador diario + `--skip-if-done-this-week`** en vez de un webhook de n8n.
+
 Leer antes: `AGENTS.md`, `ESTADO.md` y las reglas generales de `00-INDICE.md`.
 Tareas de este archivo: T4.1, T4.2, T4.3, T4.4. Varias partes las hace el usuario a mano; el Build debe **parar y pedirle esos pasos**, no inventarlos.
 

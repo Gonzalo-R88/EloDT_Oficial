@@ -1,18 +1,27 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-10-29.
+Última actualización: 2026-11-04.
 
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.
 > Se ejecuta **una tarea por sesión**, marcando la casilla en el índice.
-> Hechas: **T0.1, T0.2, T0.3, T0.4, T0.5, T0.6** (+ la Recopa y la recuperación de
-> partidos sin DT, que no estaban en el plan). **Siguiente: Fase 1** — T1.2
-> (`EloParams`), T1.4 (K de eliminatorias) y T1.1 (backtest), todas sin VPN.
+> Hechas: **T0.1-T0.6, T1.1-T1.7, T2.1-T2.5, T3.1-T3.8 y T4.1-T4.4** (+ la Recopa y la
+> recuperación de partidos sin DT, que no estaban en el plan). **Siguiente: Fase 5** —
+> T5.1 (coeficientes por liga) es la primera sin dependencias del usuario.
 > Los pendientes del usuario viven en `docs/plan/PENDIENTES.md`.
 >
-> **Estado de la base (2026-10-29):** 203.064 partidos, 6.806 DTs, 55 competencias,
-> 2000-05-04 a 2026-10-27. `validate_elo.py` en verde; 32 conflictos de fecha
-> (rarezas de TM). 73 tests verdes. Último commit: ver `scripts/gitw.sh log`.
+> **Estado de la base (2026-11-04):** 215.099 partidos, 8.002 DTs, 2000-2026 + selecciones.
+> `validate_elo.py` en verde: masa 8.002.000 = 8.002 × 1.000, 0 duplicados tm_id, 0 partidos
+> con suma ≠ 0. 181 tests verdes. Último update: run 8 de `ejecuciones_pipeline`,
+> 1.628 partidos nuevos, 0 errores de scraping.
+>
+> **Pipeline completo:** `python3 scripts/weekly_run.py all` = update + render + notify.
+> Lo dispara la tarea **`AEP-Semanal`** del Programador de tareas de Windows todos los días
+> a las 09:00 con `--skip-if-done-this-week` (trabaja una vez por semana ISO y se recupera
+> sola si la PC estaba apagada). Ver `docs/automatizacion_semanal.md`.
+>
+> **n8n quedó descartado para esto:** se instaló en Docker y el contenedor no ve WSL ni
+> Python, así que no puede ejecutar el pipeline. Los workflows de `n8n/` están inactivos.
 
 > **SCRAPING TOTAL COMPLETADO (2026-10-27).** Las 51 competencias quedaron
 > backfilleadas 2000-2026 y cargadas a la DB (`validate_elo.py`):

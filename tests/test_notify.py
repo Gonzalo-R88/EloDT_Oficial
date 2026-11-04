@@ -126,6 +126,7 @@ def test_enviar_paquete_manda_el_formato_sugerido(monkeypatch, credenciales, tmp
     resultado = notify.enviar_paquete(tmp_path)
 
     assert documentos == ["top10_argentina_portrait.png"]  # sólo el sugerido
+    assert resultado["ok"] is True
     assert resultado["documentos"] == 1
     assert any("Texto para X" in m for m in mensajes)
     assert any("2026-W44" in m for m in mensajes)

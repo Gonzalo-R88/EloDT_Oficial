@@ -731,6 +731,15 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"update falló (código {codigo}): {resumen_update.get('error')}")
             return codigo
 
+        if resumen_update.get("skip"):
+            # La semana ya se procesó: no se re-renderiza ni se vuelve a mandar nada.
+            if args.json:
+                print(json.dumps({"ok": True, "skip": True, **resumen_update},
+                                 ensure_ascii=False))
+            else:
+                print(f"nada que hacer: {resumen_update['motivo']}")
+            return 0
+
         try:
             paquete = render(cierre=args.semana_fin)
         except Exception as error:  # noqa: BLE001

@@ -80,10 +80,10 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [x] | T3.6 | Plantilla Revelación | `05-fase3-imagenes.md` | ⚙️ | T3.1, T3.2 |
 | [x] | T3.7 | Textos sugeridos | `05-fase3-imagenes.md` | ⚙️ | T3.1 |
 | [x] | T3.8 | Subcomando `render` | `05-fase3-imagenes.md` | ⚙️ | T3.3-T3.7, T2.5 |
-| [ ] | T4.1 | Bot de Telegram y `notify.py` | `06-fase4-n8n.md` | ⚙️ 👤 | — |
-| [ ] | T4.2 | Instalar n8n en Windows | `06-fase4-n8n.md` | 👤 | T2.5 |
-| [ ] | T4.3 | Workflows de n8n | `06-fase4-n8n.md` | 👤 | T3.8, T4.1, T4.2 |
-| [ ] | T4.4 | Recuperación tras PC apagada | `06-fase4-n8n.md` | 👤 | T4.3 |
+| [x] | T4.1 | Bot de Telegram y `notify.py` | `06-fase4-n8n.md` | ⚙️ 👤 | — |
+| [x] | T4.2 | Instalar n8n (quedó en Docker: no sirve para el pipeline) | `06-fase4-n8n.md` | 👤 | T2.5 |
+| [x] | T4.3 | Workflows de n8n (inactivos, reemplazados) | `06-fase4-n8n.md` | 👤 | T3.8, T4.1, T4.2 |
+| [x] | T4.4 | Recuperación tras PC apagada (tarea `AEP-Semanal`) | `06-fase4-n8n.md` | ⚙️ | T4.3 |
 | [ ] | T5.1 | Coeficientes empíricos por liga | `07-fase5-mejoras.md` | ⚙️ | T1.7 |
 | [ ] | T5.2 | Limpieza de nombres | `07-fase5-mejoras.md` | ⚙️ | — |
 | [ ] | T5.3 | Backups semanales | `07-fase5-mejoras.md` | ⚙️ | T0.1 |
