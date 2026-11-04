@@ -410,7 +410,13 @@ def _competencias_inactivas(session, cierre: date, dias: int = 14) -> list[str]:
         ),
         {"desde": desde},
     ).all()
-    return [fila[0] for fila in filas if fila[0]]
+    from scraping.competitions import COMPETITIONS
+
+    cerradas = {
+        codigo for codigo, config in COMPETITIONS.items()
+        if getattr(config, "last_season", None) is not None
+    }
+    return [fila[0] for fila in filas if fila[0] and fila[0] not in cerradas]
 
 
 def update(
