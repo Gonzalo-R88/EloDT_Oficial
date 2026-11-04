@@ -1,0 +1,187 @@
+{
+  "name": "AEP — paquete semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Lunes 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Cada 4 horas (recupero)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -260,
+        500
+      ],
+      "notes": "Si la PC estaba apagada el lunes, la primera corrida que caiga con la PC encendida hace el trabajo. `--skip-if-done-this-week` evita repetir."
+    },
+    {
+      "parameters": {
+        "command": "wsl.exe -d Ubuntu-24.04 bash /mnt/f/ProyectoDT/scripts/n8n_run.sh all --skip-if-done-this-week --json",
+        "executeOnce": true
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Actualizar + renderizar + enviar",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ],
+      "notes": "Todo el trabajo pesado está en Python: scraping incremental, correcciones, recálculo, validación, imágenes y envío a Telegram."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.exitCode }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "¿Salió bien?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        260,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "@AEP_Analitica",
+        "text": "=✅ AEP — paquete semanal listo\n\n{{ $json.stdout }}\n\nRevisá las imágenes en el canal y publicá cuando quieras.",
+        "additionalFields": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Telegram OK",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        260
+      ],
+      "notes": "Destino del aviso. Cambialo acá si querés que llegue a tu chat personal (id numérico) en vez del canal. Requiere la credencial de Telegram del bot (AEPEloBot)."
+    },
+    {
+      "parameters": {
+        "chatId": "@AEP_Analitica",
+        "text": "=❌ AEP — la corrida semanal falló (código {{ $json.exitCode }})\n\n{{ $json.stderr || $json.stdout }}\n\nEl paquete puede estar incompleto. Revisá data/logs/weekly.log",
+        "additionalFields": {}
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "Telegram error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        540
+      ],
+      "notes": "Destino del aviso. Cambialo acá si querés que llegue a tu chat personal (id numérico) en vez del canal. Requiere la credencial de Telegram del bot (AEPEloBot)."
+    }
+  ],
+  "connections": {
+    "Lunes 08:00": {
+      "main": [
+        [
+          {
+            "node": "Actualizar + renderizar + enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada 4 horas (recupero)": {
+      "main": [
+        [
+          {
+            "node": "Actualizar + renderizar + enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar + renderizar + enviar": {
+      "main": [
+        [
+          {
+            "node": "¿Salió bien?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Salió bien?": {
+      "main": [
+        [
+          {
+            "node": "Telegram OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "active": false,
+  "pinData": {}
+}
