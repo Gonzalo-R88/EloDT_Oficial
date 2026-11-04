@@ -641,9 +641,21 @@ def main(argv: list[str] | None = None) -> int:
                                     "(default 150 o $TM_UPDATE_MAX_MINUTOS; 0 = sin límite).")
     update_parser.add_argument("--json", action="store_true")
 
-    for nombre in ("preflight", "notify", "all"):
-        p = sub.add_parser(nombre)
-        p.add_argument("--json", action="store_true")
+    notify_parser = sub.add_parser("notify", help="Envía el paquete de la semana por Telegram.")
+    notify_parser.add_argument("--carpeta", type=Path, default=None,
+                               help="Carpeta del paquete (default: la de la semana).")
+    notify_parser.add_argument("--test", action="store_true", help="Manda sólo un mensaje de prueba.")
+    notify_parser.add_argument("--json", action="store_true")
+
+    all_parser = sub.add_parser("all", help="update + render + notify.")
+    all_parser.add_argument("--semana-fin", type=date.fromisoformat, default=None)
+    all_parser.add_argument("--skip-if-done-this-week", action="store_true")
+    all_parser.add_argument("--max-minutos", type=int,
+                            default=int(os.getenv("TM_UPDATE_MAX_MINUTOS", "150")))
+    all_parser.add_argument("--json", action="store_true")
+
+    preflight_parser = sub.add_parser("preflight", help="Verifica base y Transfermarkt.")
+    preflight_parser.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
 
@@ -664,6 +676,89 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  sugerido: {resumen['sugerido']}")
             print(f"  carpeta: {resumen['carpeta']}")
         return 0
+
+    if args.comando == "preflight":
+        ok, motivo = _preflight()
+        if args.json:
+            print(json.dumps({"ok": ok, "motivo": motivo}, ensure_ascii=False))
+        else:
+            print(f"preflight: {motivo}")
+        return 0 if ok else 10
+
+    if args.comando == "notify":
+        try:
+            import notify as _notify
+
+            if args.test:
+                _notify.enviar_texto(
+                    "<b>AEP</b> — prueba del pipeline: si ves esto, el bot funciona."
+                )
+                resultado = {"test": True, "ok": True}
+            else:
+                carpeta = args.carpeta or (
+                    Path(settings.data_dir) / "output"
+                    / f"{semana_fin(args.semana_fin).isocalendar().year}-W{semana_fin(args.semana_fin).isocalendar().week:02d}"
+                )
+                resultado = {"test": False, "ok": True, **_notify.enviar_paquete(carpeta)}
+        except Exception as error:  # noqa: BLE001
+            if args.json:
+                print(json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False))
+            else:
+                print(f"error al notificar: {error}")
+            return 30
+        if args.json:
+            print(json.dumps(resultado, ensure_ascii=False))
+        else:
+            if resultado.get("test"):
+                print("mensaje de prueba enviado")
+            else:
+                print(f"enviado: {resultado['documentos']} imágenes del formato "
+                      f"{resultado['sugerido']} + {resultado['mensajes']} mensajes")
+        return 0
+
+    if args.comando == "all":
+        codigo, resumen_update = update(
+            cierre=args.semana_fin,
+            skip_if_done=args.skip_if_done_this_week,
+            max_minutos=args.max_minutos,
+        )
+        if codigo != 0:
+            if args.json:
+                print(json.dumps({"ok": False, "etapa": "update", "codigo": codigo,
+                                  **resumen_update}, ensure_ascii=False))
+            else:
+                print(f"update falló (código {codigo}): {resumen_update.get('error')}")
+            return codigo
+
+        try:
+            paquete = render(cierre=args.semana_fin)
+        except Exception as error:  # noqa: BLE001
+            if args.json:
+                print(json.dumps({"ok": False, "etapa": "render", "error": str(error)},
+                                 ensure_ascii=False))
+            else:
+                print(f"render falló: {error}")
+            return 30
+
+        try:
+            import notify as _notify
+
+            envio = _notify.enviar_paquete(paquete["carpeta"])
+        except Exception as error:  # noqa: BLE001 - el paquete ya está generado
+            envio = {"ok": False, "error": str(error)}
+
+        if args.json:
+            print(json.dumps({"ok": bool(envio.get("ok")), "update": resumen_update,
+                              "render": paquete, "notify": envio}, ensure_ascii=False))
+        else:
+            print(f"semana {paquete['semana_iso']}: {paquete['partidos']} partidos, "
+                  f"{len(paquete['generados'])} formatos")
+            if envio.get("ok"):
+                print(f"telegram: {envio['documentos']} imágenes + {envio['mensajes']} mensajes")
+            else:
+                print(f"telegram: no se pudo enviar ({envio.get('error')}) — "
+                      f"el paquete está en {paquete['carpeta']}")
+        return 0 if envio.get("ok") else 30
 
     if args.comando == "update":
         codigo, resumen = update(
