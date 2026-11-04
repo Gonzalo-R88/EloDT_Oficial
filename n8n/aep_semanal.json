@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "command": "wsl.exe -d Ubuntu-24.04 bash /mnt/f/ProyectoDT/scripts/n8n_run.sh all --skip-if-done-this-week --json",
+        "command": "wsl.exe -d Ubuntu-24.04 bash /mnt/f/ProyectoDT/scripts/entrada_windows.sh all --skip-if-done-this-week --json",
         "executeOnce": true
       },
       "id": "a1b2c3d4-0003-4000-8000-000000000003",
@@ -92,7 +92,7 @@
     },
     {
       "parameters": {
-        "chatId": "@AEP_Analitica",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
         "text": "=✅ AEP — paquete semanal listo\n\n{{ $json.stdout }}\n\nRevisá las imágenes en el canal y publicá cuando quieras.",
         "additionalFields": {}
       },
@@ -104,11 +104,11 @@
         520,
         260
       ],
-      "notes": "Destino del aviso. Cambialo acá si querés que llegue a tu chat personal (id numérico) en vez del canal. Requiere la credencial de Telegram del bot (AEPEloBot)."
+      "notes": "Destino del aviso: la variable TELEGRAM_CHAT_ID del entorno de n8n (la define windows/n8n_start.bat). Tiene que ser un chat donde el bot pueda escribir; el id numérico que usa notify.py en .env es el mismo."
     },
     {
       "parameters": {
-        "chatId": "@AEP_Analitica",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
         "text": "=❌ AEP — la corrida semanal falló (código {{ $json.exitCode }})\n\n{{ $json.stderr || $json.stdout }}\n\nEl paquete puede estar incompleto. Revisá data/logs/weekly.log",
         "additionalFields": {}
       },
@@ -120,7 +120,7 @@
         520,
         540
       ],
-      "notes": "Destino del aviso. Cambialo acá si querés que llegue a tu chat personal (id numérico) en vez del canal. Requiere la credencial de Telegram del bot (AEPEloBot)."
+      "notes": "Destino del aviso: la variable TELEGRAM_CHAT_ID del entorno de n8n (la define windows/n8n_start.bat). Tiene que ser un chat donde el bot pueda escribir; el id numérico que usa notify.py en .env es el mismo."
     }
   ],
   "connections": {

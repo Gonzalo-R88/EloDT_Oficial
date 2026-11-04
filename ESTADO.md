@@ -16,12 +16,15 @@
 > 1.628 partidos nuevos, 0 errores de scraping.
 >
 > **Pipeline completo:** `python3 scripts/weekly_run.py all` = update + render + notify.
-> Lo dispara la tarea **`AEP-Semanal`** del Programador de tareas de Windows todos los días
-> a las 09:00 con `--skip-if-done-this-week` (trabaja una vez por semana ISO y se recupera
-> sola si la PC estaba apagada). Ver `docs/automatizacion_semanal.md`.
+> Lo dispara **n8n nativo en Windows** (`n8n-AEP` al iniciar sesión; workflow `AEP — paquete
+> semanal`, lunes 08:00 + cada 4 h) con `--skip-if-done-this-week`, y la tarea `AEP-Semanal`
+> del Programador de tareas (diaria 09:00) queda como respaldo idempotente. Ver
+> `docs/automatizacion_semanal.md`.
 >
-> **n8n quedó descartado para esto:** se instaló en Docker y el contenedor no ve WSL ni
-> Python, así que no puede ejecutar el pipeline. Los workflows de `n8n/` están inactivos.
+> **n8n:** primero se probó en Docker y no servía (el contenedor no ve WSL ni Python); el
+> contenedor quedó detenido y se instaló nativo con el Node de `F:\Doom\LLM` (v2.46.6).
+> Trampas documentadas: `NODES_EXCLUDE=[]`, `publish:workflow` + reinicio, no setear
+> `N8N_USER_FOLDER` en los imports, y desde WSL usar `http://winhost:5678`.
 
 > **SCRAPING TOTAL COMPLETADO (2026-10-27).** Las 51 competencias quedaron
 > backfilleadas 2000-2026 y cargadas a la DB (`validate_elo.py`):

@@ -1,70 +1,109 @@
-# Automatización semanal (Windows)
+# Automatización semanal (Windows + n8n nativo)
 
-El paquete de la semana lo dispara el **Programador de tareas de Windows**, no n8n.
-Esta página explica cómo quedó, cómo probarlo y por qué n8n no puede hacer este trabajo
-en esta máquina.
+El paquete de la semana lo dispara **n8n nativo en Windows**, con una tarea del
+Programador de tareas como red de seguridad. Esta página explica cómo quedó, cómo probarlo
+y cómo se instala de cero.
 
-## 1. Qué corre y cuándo
+## 1. Piezas
 
-Tarea programada **`AEP-Semanal`**:
-
-| Campo | Valor |
+| Pieza | Qué hace |
 |---|---|
-| Disparador | todos los días a las **09:00**, con *Ejecutar la tarea lo antes posible si se omitió un inicio programado* |
-| Acción | `C:\Users\Gonzalo\aep_semanal.bat` |
-| Log | `C:\Users\Gonzalo\aep_semanal.log` (detalle en `F:\ProyectoDT\data\logs\weekly.log`) |
-| Código de salida | 0 ok · 10 bloqueo/VPN · 20 validación del ELO · 30 otro error |
+| Tarea **`n8n-AEP`** (Programador de tareas) | Arranca n8n al iniciar sesión (1 min de demora) |
+| `windows/n8n_start.bat` | Define el entorno de n8n y lo levanta en el puerto 5678 |
+| Workflow **`AEP — paquete semanal`** | Lunes 08:00 + cada 4 h → `Execute Command` → ✅/❌ por Telegram |
+| Workflow **`AEP — alertas de error`** | Error Trigger → Telegram si un workflow se rompe |
+| Tarea **`AEP-Semanal`** (Programador de tareas) | Respaldo: todos los días 09:00, mismo comando (si n8n no estaba corriendo) |
 
-El `.bat` hace una sola cosa:
+Todo termina en el mismo lugar: `scripts/entrada_windows.sh all --skip-if-done-this-week`,
+que es update + render + notify con corte por semana ISO.
+
+## 2. La cadena
 
 ```
-wsl.exe -d Ubuntu-24.04 -u gonzalo bash /mnt/f/ProyectoDT/scripts/entrada_windows.sh all --skip-if-done-this-week --json
+n8n (Lunes 08:00 / cada 4 h)
+   └─ Execute Command: wsl.exe ... entrada_windows.sh all --skip-if-done-this-week --json
+          ├─ exit 0  → Telegram ✅ (con el stdout)
+          └─ exit ≠0 → Telegram ❌ (con el stderr)
 ```
 
-`weekly_run.py all` = update + render + notify, y **`--skip-if-done-this-week`** consulta
-`ejecuciones_pipeline`: si la semana ISO ya se procesó, termina en menos de un segundo sin
-regenerar ni mandar nada.
+Los dos workflows están **activos y publicados**. El "cada 4 horas" es el recupero: si el
+lunes la PC estaba apagada, la primera corrida que caiga con la PC encendida hace el
+trabajo; si la semana ya se procesó, el comando sale en <2 s sin tocar nada.
 
-### Por qué diario y no "lunes a las 8"
+**Por qué hay dos disparadores (n8n + Programador de tareas):** son idempotentes y se pisan
+por el lock `data/weekly.lock`. Si n8n no está corriendo, la tarea `AEP-Semanal` salva la
+semana; si n8n corre, es la que gana. Nunca se duplica el envío.
 
-Porque el disparador diario + el *skip* dan lo mismo que un cron semanal, pero con
-recuperación automática: si el lunes la PC estaba apagada, corre el martes 09:00 (o en el
-primer arranque, por *start when available*) y **el paquete es el de la misma semana**.
-Si el lunes falló por VPN, al día siguiente reintenta solo. Un cron semanal no reintenta
-hasta siete días después.
+## 3. Configuración que hace que funcione
 
-## 2. Instalación en otra máquina
+En `windows/n8n_start.bat`, todas críticas:
+
+| Variable | Por qué |
+|---|---|
+| `PATH=F:\Doom\LLM;%PATH%` | Node vive ahí; el `n8n.cmd` de npm lo busca en el PATH |
+| `NODES_EXCLUDE=[]` | n8n **excluye Execute Command por defecto**; sin esto el nodo ni se carga |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` + `TELEGRAM_CHAT_ID` | los nodos de Telegram leen el destino de `$env` en vez de tenerlo escrito |
+| `GENERIC_TIMEZONE` / `TZ` | America/Argentina/Buenos_Aires, para que "lunes 08:00" sea local |
+
+La credencial **`Telegram AEP`** (`telegramApi`) es la que usan los dos workflows. Se importó
+por CLI desde el token de `.env`, así que el token no está escrito en ningún nodo.
+
+## 4. Instalación de cero
 
 ```bat
-schtasks /create /tn "AEP-Semanal" /xml windows\aep_semanal_task.xml /f
-schtasks /run  /tn "AEP-Semanal"        :: prueba manual
-schtasks /query /tn "AEP-Semanal" /v /fo list
+:: 1. n8n con el Node de F:
+set PATH=F:\Doom\LLM;%PATH%
+npm install -g n8n
+
+:: 2. entorno + arranque (ver contenido en windows/n8n_start.bat)
+copy windows\n8n_start.bat C:\Users\Gonzalo\n8n_start.bat
+
+:: 3. tareas
+schtasks /create /tn "n8n-AEP"      /xml windows\n8n_start_task.xml /f
+schtasks /create /tn "AEP-Semanal"  /xml windows\aep_semanal_task.xml /f
+
+:: 4. workflows (necesitan la credencial ya importada)
+n8n.cmd import:credentials --input=credenciales.json
+n8n.cmd import:workflow    --input=n8n\aep_semanal.json
+n8n.cmd import:workflow    --input=n8n\aep_errores.json
+n8n.cmd publish:workflow   --id=<id del workflow>
 ```
 
-El XML fija la ruta del `.bat` y el usuario (`TURRON\Gonzalo`): si cambia la máquina,
-editá `windows/aep_semanal_task.xml` antes de registrarlo. Para desactivarla:
-`schtasks /change /tn "AEP-Semanal" /DISABLE`.
+**Trampas que costaron tiempo:**
 
-## 3. Por qué no n8n
+- `n8n import:workflow` **desactiva** el workflow si estaba activo; hay que volver a
+  `publish:workflow` y **reiniciar n8n** para que el scheduler lo registre.
+- `n8n update:workflow --active=true` está deprecado y deja el workflow *desactivado*.
+  Usar siempre `publish:workflow`.
+- `n8n import:credentials` con `N8N_USER_FOLDER` seteado crea la DB en
+  `<carpeta>\.n8n\.n8n` (anidada) en vez de usarla. No setearlo.
+- Desde WSL, `localhost:5678` **no** llega al n8n de Windows: usar `http://winhost:5678`
+  (la entrada de `/etc/hosts` que ya usa Postgres).
+- El destino de Telegram es el chat **personal** (`TELEGRAM_CHAT_ID` en `.env`), no el canal
+  `@AEP_Analitica`: con el handle, el nodo devolvía `400 chat not found`.
 
-n8n está instalado **en Docker** (`n8nio/n8n:latest`, contenedor `n8n`, puerto 5678) y el
-flujo necesitaba el nodo *Execute Command* para llamar a Python. Eso no puede funcionar:
+## 5. Cómo probarlo
 
-| Comprobación | Resultado |
-|---|---|
-| `docker exec n8n sh -c "command -v wsl.exe"` | no existe: el contenedor no ve WSL |
-| `docker exec n8n sh -c "command -v python3"` | no existe: no hay Python en la imagen |
-| nodo `n8n-nodes-base.executeCommand` | excluido por defecto (`Unrecognized node type`) |
+```bat
+:: ver si n8n está arriba
+curl http://localhost:5678
 
-Un contenedor no puede invocar el subsistema Linux del host. Para que n8n sirviera habría
-que montar un puente HTTP dentro de WSL (un servicio extra que hay que mantener vivo) o
-instalar n8n nativo en Windows y habilitar el nodo, que es exactamente lo que el
-Programador de tareas ya resuelve sin sumar piezas.
+:: correr el workflow ahora, sin esperar el lunes (desde la UI: "Execute workflow")
+```
 
-Los workflows de `n8n/` quedan como referencia de ese diseño descartado: están inactivos.
+El estado de cada corrida queda en la tabla `execution_entity` de
+`C:\Users\Gonzalo\.n8n\database.sqlite`:
 
-## 4. Qué NO hace
+```sql
+select id, status, startedAt, stoppedAt from execution_entity order by id desc limit 5;
+```
 
-- No publica en redes: el paquete llega a Telegram para revisarlo y publicarlo a mano.
-- No apaga la PC. Si querés el apagado después de la corrida, está
-  `scripts/apagar_al_terminar.sh`, que se lanza aparte.
+Y las corridas del pipeline, con partidos cargados y errores, en `ejecuciones_pipeline`
+(Postgres) y `data/logs/weekly.log`.
+
+## 6. Por qué no se usó el n8n de Docker
+
+La primera versión corrió en Docker (`n8nio/n8n`, contenedor `n8n`). Un contenedor no ve el
+host: `docker exec n8n sh -c "command -v wsl.exe"` y `command -v python3` fallan, así que
+no puede ejecutar el pipeline. El contenedor quedó **detenido** (se puede borrar con
+`docker rm n8n`); la DB y los workflows viejos viven ahí, no en la instancia nativa.
