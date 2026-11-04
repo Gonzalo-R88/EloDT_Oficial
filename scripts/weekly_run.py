@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -47,6 +48,8 @@ from db import create_session  # noqa: E402
 from elo import MODELO_VERSION  # noqa: E402
 from render_html import TEMPLATES_DIR, render_png  # noqa: E402
 from snapshots import semana_fin, take_snapshot  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 HANDLE = "@AEP_Analitica"
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
@@ -443,6 +446,14 @@ def update(
     try:
         from models import EjecucionPipeline
 
+        # Corridas anteriores que quedaron en 'corriendo' (corte de luz, kill) se marcan
+        # como interrumpidas: si no, el registro miente sobre lo que está pasando.
+        session.execute(
+            text("update ejecuciones_pipeline set estado = 'interrumpida', "
+                 "terminado_en = now() where estado = 'corriendo'")
+        )
+        session.commit()
+
         ejecucion = EjecucionPipeline(semana_fin=cierre, estado="corriendo")
         session.add(ejecucion)
         session.commit()
@@ -588,8 +599,6 @@ def _pendiente(nombre: str) -> int:
 
 def _configurar_logging() -> None:
     """Log a archivo además de la salida estándar (n8n sólo ve el stdout)."""
-    import logging
-
     destino = Path(settings.data_dir) / "logs"
     destino.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
