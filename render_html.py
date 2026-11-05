@@ -38,6 +38,9 @@ VARIANTES: dict[str, Variante] = {
     "landscape": Variante("landscape", 1600, 900),   # X / LinkedIn apaisado
     "square": Variante("square", 1080, 1080),        # respaldo
     "story": Variante("story", 1080, 1920),          # stories
+    # Imágenes de marca (no son piezas de contenido: son el perfil y el banner de X).
+    "perfil": Variante("perfil", 400, 400),          # foto de perfil (X recorta en círculo)
+    "banner": Variante("banner", 1500, 500),         # cabecera de X
 }
 
 

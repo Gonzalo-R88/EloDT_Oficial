@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", help="Ruta del PNG. Por defecto data/output/duelo_<a>_<b>.png.")
     parser.add_argument("--title", default="DUELO DE PIZARRAS", help="Título de la infografía.")
     parser.add_argument("--subtitle", default=None, help="Subtítulo (por defecto, historial hasta la fecha).")
-    parser.add_argument("--handle", default="@AEP_Analitica", help="Usuario/marca en el pie.")
+    parser.add_argument("--handle", default="@EloDt_Oficial", help="Usuario/marca en el pie.")
     args = parser.parse_args(argv)
 
     session = create_session()

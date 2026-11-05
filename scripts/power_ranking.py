@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--competition", help="Filtrar por código de competencia (ej. AR1N).")
     parser.add_argument("--output", help="Ruta del PNG. Por defecto data/output/power_ranking_<hasta>.png.")
     parser.add_argument("--title", default="POWER RANKING DE LA FECHA", help="Título de la infografía.")
-    parser.add_argument("--handle", default="@AEP_Analitica", help="Usuario/marca en el pie.")
+    parser.add_argument("--handle", default="@EloDt_Oficial", help="Usuario/marca en el pie.")
     args = parser.parse_args(argv)
 
     session = create_session()

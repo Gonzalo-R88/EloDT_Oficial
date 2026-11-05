@@ -1,7 +1,11 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-11-04.
+Última actualización: 2026-11-05.
 
+> **Marca (2026-11-05):** X **@EloDt_Oficial**, correo elodt.oficial@gmail.com.
+> Logo: 3 propuestas en `assets/brand/` (`scripts/logo.py`); el handle ya reemplazó al
+> placeholder en `captions.py`, los scripts y los templates.
+>
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.
 > Se ejecuta **una tarea por sesión**, marcando la casilla en el índice.

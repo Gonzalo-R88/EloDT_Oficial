@@ -96,9 +96,12 @@ opciones, escribila debajo de la línea para que quede el registro.
   - Qué vas a ver: el primer PNG con datos reales de Argentina. Aprobás o pedís cambios
     (colores, tipografía, qué datos se muestran).
 
-- [ ] **Marca y handle** — antes del primer post.
-  - Hoy es un placeholder: `@AEP_Analitica`. Cuando definas el nombre, se cambia en un
-    solo lugar.
+- [x] **Marca y handle** — definido 2026-11-05.
+  - Cuenta de X: **@EloDt_Oficial** (marca "ELO DT"). Correo: `elodt.oficial@gmail.com`.
+  - El handle vive en `captions.py` (`HANDLE`) y en los defaults de
+    `scripts/power_ranking.py`, `scripts/duelo_pizarras.py` y `scripts/weekly_run.py`.
+  - Logo: tres propuestas en `assets/brand/` (perfil + banner); falta que elijas una.
+    Se regeneran con `python3 scripts/logo.py`.
 
 ---
 
