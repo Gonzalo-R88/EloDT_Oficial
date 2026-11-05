@@ -5,7 +5,8 @@ variable `formato` ('perfil' o 'banner'), así que se edita en un solo archivo.
 
     python3 scripts/logo.py [--handle @EloDT_oficial] [--salida assets/brand]
 
-El perfil sale a 400×400 y el banner a 1500×500, que son las medidas que usa X.
+El perfil se renderiza al doble (800×800) porque X lo muestra a 400 y así queda nítido en
+pantallas retina; el banner sale a 1500×500, que es la medida que recomienda X.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from render_html import dimensiones, render_png  # noqa: E402
 
 PLANTILLA = "brand/marcador.html"
 HANDLE = "@EloDT_oficial"
-FORMATOS = (("perfil", 1.0), ("banner", 1.0))
+FORMATOS = (("perfil", 2.0), ("banner", 1.0))
 
 
 def generar(handle: str, salida: Path) -> list[Path]:
