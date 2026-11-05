@@ -2,7 +2,7 @@
 
 Última actualización: 2026-11-05.
 
-> **Marca (2026-11-05):** X **@EloDt_Oficial**, correo elodt.oficial@gmail.com.
+> **Marca (2026-11-05):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
 > Logo: 3 propuestas en `assets/brand/` (`scripts/logo.py`); el handle ya reemplazó al
 > placeholder en `captions.py`, los scripts y los templates.
 >

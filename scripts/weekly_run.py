@@ -51,7 +51,7 @@ from snapshots import semana_fin, take_snapshot  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-HANDLE = "@EloDt_Oficial"
+HANDLE = "@EloDT_oficial"
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
          "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 VARIANTES = ("portrait", "landscape", "square")

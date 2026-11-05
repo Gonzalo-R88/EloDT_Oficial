@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-HANDLE = "@EloDt_Oficial"
+HANDLE = "@EloDT_oficial"
 HASHTAGS = "#AEP #DTs #ELO #Futbol"
 LIMITE_X = 280
 FUENTE = "Datos: Transfermarkt · ELO propio (modelo AEP)."
