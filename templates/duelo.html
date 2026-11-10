@@ -54,37 +54,50 @@
     }
     .h2h b { color: var(--violeta); }
 
-    .grafico {
+    .comparacion {
       flex: 1; min-height: 0; background: var(--panel); border: 1px solid var(--borde);
       border-radius: 1.4vh; padding: 1.2vh 1.4vw; display: flex; flex-direction: column;
-      gap: 0.6vh;
+      gap: 0.8vh;
     }
-    .grafico-cabecera {
-      display: flex; align-items: baseline; justify-content: space-between; gap: 1.2vw;
-    }
-    .grafico .rotulo {
+    .comparacion .rotulo {
       font-size: 1.4vh; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
     }
-    .leyenda { display: flex; gap: 1.6vw; font-size: 1.5vh; }
-    .leyenda .chip { display: inline-flex; align-items: center; gap: 0.5vh; color: var(--texto); }
-    .leyenda .chip i { width: 2.4vh; height: 0.5vh; border-radius: 1vh; display: inline-block; }
-    .leyenda .chip.a i { background: var(--celeste); }
-    .leyenda .chip.b i { background: var(--violeta); }
-    .leyenda .chip .valor { color: var(--muted); }
-    .leyenda .chip .sube { color: #0f9d58; font-weight: 600; }
-    .leyenda .chip .baja { color: #d93025; font-weight: 600; }
-
-    /* El SVG se estira para llenar la caja, por eso el texto va en HTML: dentro del SVG
-       saldría deformado. Las líneas usan `non-scaling-stroke` para no engrosarse. */
-    .grafico-caja { position: relative; flex: 1; min-height: 0; }
-    .grafico svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .escala {
-      position: absolute; right: 0.4vw; font-size: 1.3vh; color: var(--muted);
-      background: var(--panel); padding: 0 0.6vh;
+    .comparacion .filas { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3vh; min-height: 0; }
+    .fila {
+      /* Columnas elásticas: el nombre y los números piden lo que necesitan y la barra
+         se queda con el resto. Con anchos fijos en vw, en retrato se cortaba el nombre. */
+      display: grid; grid-template-columns: auto 1fr auto auto 13vw;
+      align-items: center; gap: 1.2vw;
     }
-    .escala.max { top: 0; }
-    .escala.min { bottom: 0; }
-    .escala.cero { transform: translateY(-50%); color: var(--violeta); font-weight: 600; }
+    .fila .nombre {
+      font-size: 2.4vh; font-weight: 700; white-space: nowrap;
+    }
+    .fila .barra {
+      height: 4.2vh; border-radius: 1vh; background: var(--borde); position: relative; overflow: hidden;
+    }
+    .fila .relleno { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 1vh; }
+    .fila.a .relleno { background: linear-gradient(90deg, var(--celeste-claro), var(--celeste)); }
+    .fila.b .relleno { background: linear-gradient(90deg, var(--lila), var(--violeta)); }
+    .fila .nivel { font-family: "Anton", sans-serif; font-size: 3.8vh; text-align: right; }
+    .fila.a .nivel { color: #0e8fbd; }
+    .fila.b .nivel { color: #6d28d9; }
+    .fila .mejora { text-align: right; font-size: 2.8vh; font-weight: 700; line-height: 1.05; }
+    .fila .mejora .sube { color: #0f9d58; }
+    .fila .mejora .baja { color: #d93025; }
+    .fila .mejora small {
+      display: block; font-size: 1.4vh; font-weight: 400; color: var(--muted); white-space: nowrap;
+    }
+    /* El recorrido de las 12 semanas: mismo ancho para los dos, así los trazos comparan. */
+    .fila .spark { width: 100%; height: 9vh; }
+    /* Debajo de la barra: la primera celda (vacía) copia el ancho del nombre y la última
+       el de los números, así base y tope quedan alineados con la barra. */
+    .comparacion .escala {
+      display: grid; grid-template-columns: auto 1fr auto auto 13vw;
+      gap: 1.2vw; font-size: 1.2vh; color: var(--muted);
+    }
+    .comparacion .escala > span:nth-child(2) {
+      display: flex; justify-content: space-between;
+    }
 
     .pie { padding: 1.2vh 7vw 2vh; font-size: 1.6vh; }
     body.variante-landscape .cabecera .titulo { font-size: 7.4vh; }
@@ -129,31 +142,32 @@
         {% endif %}
       </div>
 
-      <div class="grafico">
-        <div class="grafico-cabecera">
-          <div class="rotulo">Cuánto cambió el ELO · últimas {{ grafico.semanas }} semanas</div>
-          <div class="leyenda">
-            {% for serie, clase in [(grafico.serie_a, "a"), (grafico.serie_b, "b")] %}
-            <span class="chip {{ clase }}">
-              <i></i>{{ serie.apellido }}
-              <span class="valor">{{ serie.elo | round | int }}</span>
+      <div class="comparacion">
+        <div class="rotulo">Nivel de ELO y mejora en las últimas {{ grafico.semanas }} semanas</div>
+        <div class="filas">
+          {% for stats, serie, clase in [(duelo.duelo.a, grafico.serie_a, "a"), (duelo.duelo.b, grafico.serie_b, "b")] %}
+          <div class="fila {{ clase }}">
+            <div class="nombre">{{ serie.apellido }}</div>
+            <div class="barra"><div class="relleno" style="width: {{ serie.barra }}%"></div></div>
+            <div class="nivel">{{ serie.elo | round | int }}</div>
+            <div class="mejora">
               <span class="{{ 'sube' if serie.delta >= 0 else 'baja' }}">{{ serie.delta_texto }}</span>
-            </span>
-            {% endfor %}
+              <small>en {{ grafico.semanas }} semanas</small>
+            </div>
+            <svg class="spark" viewBox="0 0 {{ grafico.ancho }} {{ grafico.alto }}" preserveAspectRatio="none">
+              <line x1="0" y1="{{ grafico.y_cero }}" x2="{{ grafico.ancho }}" y2="{{ grafico.y_cero }}"
+                    stroke="#c4b5fd" stroke-width="1" vector-effect="non-scaling-stroke" />
+              <polyline points="{{ serie.puntos }}" fill="none"
+                        {% if clase == "a" %}stroke="#22b8f0"{% else %}stroke="#8b5cf6"{% endif %}
+                        stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"
+                        vector-effect="non-scaling-stroke" />
+            </svg>
           </div>
+          {% endfor %}
         </div>
-        <div class="grafico-caja">
-          <svg viewBox="0 0 {{ grafico.ancho }} {{ grafico.alto }}" preserveAspectRatio="none">
-            <line x1="0" y1="{{ grafico.y_cero }}" x2="{{ grafico.ancho }}" y2="{{ grafico.y_cero }}"
-                  stroke="#c4b5fd" stroke-width="1.5" vector-effect="non-scaling-stroke" />
-            <polyline points="{{ grafico.puntos_a }}" fill="none" stroke="#22b8f0" stroke-width="2.5"
-                      stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-            <polyline points="{{ grafico.puntos_b }}" fill="none" stroke="#8b5cf6" stroke-width="2.5"
-                      stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-          </svg>
-          <span class="escala max">{{ grafico.escala_max }}</span>
-          <span class="escala cero" style="top: {{ (grafico.y_cero / grafico.alto * 100) | round(1) }}%">0</span>
-          <span class="escala min">{{ grafico.escala_min }}</span>
+        <div class="escala">
+          <span></span>
+          <span><span>{{ grafico.base }}</span><span>{{ grafico.tope }}</span></span>
         </div>
       </div>
     </div>

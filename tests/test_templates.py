@@ -200,11 +200,15 @@ def _contexto_duelo():
         ),
         "grafico": {
             "ancho": 1000, "alto": 220, "semanas": 12,
-            "y_cero": 138.5, "escala_max": "+8,3", "escala_min": "-12,6",
-            "serie_a": {"apellido": "Diez", "elo": 1138.0, "delta": -12.6, "delta_texto": "-12,6"},
-            "serie_b": {"apellido": "Berti", "elo": 1141.0, "delta": 8.3, "delta_texto": "+8,3"},
-            "puntos_a": "10,10 500,120 990,200",
-            "puntos_b": "10,200 500,120 990,10",
+            "y_cero": 138.5, "base": 1000, "tope": 1500,
+            "serie_a": {
+                "apellido": "Diez", "elo": 1138.0, "delta": -12.6, "delta_texto": "-12,6",
+                "barra": 27.6, "puntos": "10,10 500,120 990,200",
+            },
+            "serie_b": {
+                "apellido": "Berti", "elo": 1141.0, "delta": 8.3, "delta_texto": "+8,3",
+                "barra": 28.2, "puntos": "10,200 500,120 990,10",
+            },
         },
         "handle": "@EloDT_oficial",
     }
@@ -223,18 +227,20 @@ def test_duelo_renderiza_y_no_duplica_el_nombre(tmp_path, nombre):
     assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
 
 
-def test_el_grafico_del_duelo_muestra_la_variacion_no_el_nivel():
-    """Las series arrancan en cero: se compara quién mejoró, no quién está más arriba."""
+def test_el_duelo_separa_nivel_de_mejora():
+    """El nivel va en la barra (más larga = más ELO) y la mejora en el número verde.
+
+    Un solo gráfico con las dos series obligaba a elegir: si mostraba el nivel, no se veía
+    la mejora; si mostraba la mejora, la línea del que tiene menos ELO parecía la mejor.
+    """
     html = renderizar_html("duelo.html", _contexto_duelo(), "landscape")
 
-    assert "Cuánto cambió el ELO" in html           # el rótulo dice qué muestra
-    assert "Diez" in html and "Berti" in html       # leyenda
-    assert "-12,6" in html and "+8,3" in html       # escala en variación, con signo
-    assert ">0<" in html                            # el cero queda marcado
-    # La línea de referencia ahora es el cero, no la mitad del gráfico.
-    assert 'y1="138.5"' in html
-    # El trazo no debe engordar al estirarse el SVG.
-    assert 'vector-effect="non-scaling-stroke"' in html
+    assert "Nivel de ELO y mejora" in html                      # el rótulo dice qué muestra
+    assert "width: 27.6%" in html and "width: 28.2%" in html    # barras proporcionales
+    assert "1138" in html and "1141" in html                    # el nivel, al lado de la barra
+    assert "-12,6" in html and "+8,3" in html                   # la mejora, con signo
+    assert ">1000<" in html and ">1500<" in html                # escala de la barra
+    assert 'vector-effect="non-scaling-stroke"' in html         # el trazo no engorda
 
 
 def _contexto_revelacion():

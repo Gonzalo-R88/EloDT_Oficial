@@ -133,13 +133,24 @@ def _contexto_duelo(session, cierre: date, semana_texto: str):
     util_alto = alto - 2 * margen
     y_cero = alto - margen - ((0.0 - minimo) / (maximo - minimo)) * util_alto
 
-    def _lado(lado, valores, deltas):
-        """Lo que necesita la leyenda: quién es, su ELO y cuánto se movió."""
+    # Barra de nivel: escala fija 1000-1500 (el ELO arranca en 1000), estirada si algún
+    # DT queda fuera para no mostrar una barra vacía.
+    elos = [v for v in (valores_a[-1:] + valores_b[-1:]) if v]
+    base = min([1000, *(int(v // 50 * 50) for v in elos)]) if elos else 1000
+    tope = max([1500, *(int(v // 50 * 50 + 50) for v in elos)]) if elos else 1500
+    rango = max(tope - base, 1)
+
+    def _lado(lado, valores, deltas, puntos):
+        """Lo que necesita cada fila de la comparación."""
+        elo = valores[-1] if valores else getattr(lado, "elo_actual", 0.0)
+        delta = deltas[-1] if deltas else 0.0
         return {
             "apellido": getattr(lado, "apellido", "") or getattr(lado, "nombre", ""),
-            "elo": valores[-1] if valores else getattr(lado, "elo_actual", 0.0),
-            "delta": deltas[-1] if deltas else 0.0,
-            "delta_texto": _etiqueta_delta(deltas[-1]) if deltas else _etiqueta_delta(0.0),
+            "elo": elo,
+            "delta": delta,
+            "delta_texto": _etiqueta_delta(delta),
+            "barra": round(min(100.0, max(0.0, (elo - base) / rango * 100)), 1),
+            "puntos": puntos,
         }
 
     grafico = {
@@ -147,12 +158,16 @@ def _contexto_duelo(session, cierre: date, semana_texto: str):
         "alto": alto,
         "semanas": 12,
         "y_cero": round(y_cero, 1),
-        "escala_max": _etiqueta_delta(maximo),
-        "escala_min": _etiqueta_delta(minimo),
-        "serie_a": _lado(duelo.duelo.a, valores_a, delta_a),
-        "serie_b": _lado(duelo.duelo.b, valores_b, delta_b),
-        "puntos_a": polilinea(delta_a, ancho, alto, minimo, maximo) if delta_a else "",
-        "puntos_b": polilinea(delta_b, ancho, alto, minimo, maximo) if delta_b else "",
+        "base": base,
+        "tope": tope,
+        "serie_a": _lado(
+            duelo.duelo.a, valores_a, delta_a,
+            polilinea(delta_a, ancho, alto, minimo, maximo) if delta_a else "",
+        ),
+        "serie_b": _lado(
+            duelo.duelo.b, valores_b, delta_b,
+            polilinea(delta_b, ancho, alto, minimo, maximo) if delta_b else "",
+        ),
     }
     contexto = {
         "titulo": "DUELO DE PIZARRAS",
