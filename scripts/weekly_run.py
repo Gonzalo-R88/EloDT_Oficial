@@ -100,6 +100,13 @@ def _contexto_top(session, cierre: date, pais: Optional[str], partidos: int):
     }, None
 
 
+def _etiqueta_delta(valor: float) -> str:
+    """'+43,3' / '-18,6' / '0,0' para la escala del gráfico del duelo."""
+    if abs(valor) < 0.05:
+        return "0,0"
+    return f"{valor:+.1f}".replace(".", ",")
+
+
 def _contexto_duelo(session, cierre: date, semana_texto: str):
     duelo = duelo_de_la_semana(session, semana_fin=cierre)
     if duelo is None:
@@ -108,29 +115,44 @@ def _contexto_duelo(session, cierre: date, semana_texto: str):
     series = serie_elo(session, [duelo.dt_a_id, duelo.dt_b_id], semanas=12, hasta=cierre)
     valores_a = [elo for _, elo in series.get(duelo.dt_a_id, [])]
     valores_b = [elo for _, elo in series.get(duelo.dt_b_id, [])]
-    todos = valores_a + valores_b
-    # Si no hay serie, el gráfico queda vacío pero la escala no puede romperse.
-    minimo, maximo = (min(todos), max(todos)) if todos else (0.0, 1.0)
-    ancho, alto = 1000, 220
 
-    def _lado(lado, valores):
-        """Lo que necesita la leyenda: quién es y cómo se movió en la ventana."""
+    # El gráfico muestra **variación desde cero**, no nivel: las dos series arrancan en 0 y
+    # se ve cuánto ganó o perdió cada uno en la ventana. Con los niveles, el que está más
+    # arriba aplasta al otro y no se entiende quién mejoró.
+    delta_a = [valor - valores_a[0] for valor in valores_a] if valores_a else []
+    delta_b = [valor - valores_b[0] for valor in valores_b] if valores_b else []
+    todos = delta_a + delta_b
+    # La escala siempre incluye el cero: es la referencia del gráfico.
+    minimo = min([0.0, *todos])
+    maximo = max([0.0, *todos])
+    if maximo <= minimo:
+        maximo = minimo + 1.0
+
+    ancho, alto = 1000, 220
+    margen = 10
+    util_alto = alto - 2 * margen
+    y_cero = alto - margen - ((0.0 - minimo) / (maximo - minimo)) * util_alto
+
+    def _lado(lado, valores, deltas):
+        """Lo que necesita la leyenda: quién es, su ELO y cuánto se movió."""
         return {
             "apellido": getattr(lado, "apellido", "") or getattr(lado, "nombre", ""),
             "elo": valores[-1] if valores else getattr(lado, "elo_actual", 0.0),
-            "delta": (valores[-1] - valores[0]) if len(valores) > 1 else 0.0,
+            "delta": deltas[-1] if deltas else 0.0,
+            "delta_texto": _etiqueta_delta(deltas[-1]) if deltas else _etiqueta_delta(0.0),
         }
 
     grafico = {
         "ancho": ancho,
         "alto": alto,
         "semanas": 12,
-        "minimo": minimo,
-        "maximo": maximo,
-        "serie_a": _lado(duelo.duelo.a, valores_a),
-        "serie_b": _lado(duelo.duelo.b, valores_b),
-        "puntos_a": polilinea(valores_a, ancho, alto, minimo, maximo) if valores_a else "",
-        "puntos_b": polilinea(valores_b, ancho, alto, minimo, maximo) if valores_b else "",
+        "y_cero": round(y_cero, 1),
+        "escala_max": _etiqueta_delta(maximo),
+        "escala_min": _etiqueta_delta(minimo),
+        "serie_a": _lado(duelo.duelo.a, valores_a, delta_a),
+        "serie_b": _lado(duelo.duelo.b, valores_b, delta_b),
+        "puntos_a": polilinea(delta_a, ancho, alto, minimo, maximo) if delta_a else "",
+        "puntos_b": polilinea(delta_b, ancho, alto, minimo, maximo) if delta_b else "",
     }
     contexto = {
         "titulo": "DUELO DE PIZARRAS",
