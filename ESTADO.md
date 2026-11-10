@@ -1,10 +1,17 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-11-05.
+Última actualización: 2026-11-10.
 
-> **Marca (2026-11-05):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
-> Logo: 3 propuestas en `assets/brand/` (`scripts/logo.py`); el handle ya reemplazó al
-> placeholder en `captions.py`, los scripts y los templates.
+> **Marca (2026-11-10):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
+> Logo: `assets/brand/perfil.png` y `banner.png` (diseño de marcador; se regeneran con
+> `python3 scripts/logo.py`). El handle ya reemplazó al placeholder en todo el código.
+>
+> **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
+> leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque
+> monoespaciado para copiar. **Un solo texto por pieza** (≤280, sirve para X y LinkedIn),
+> sin hashtags, sin "Transfermarkt" y sin el handle (va en el pie de la imagen). El Top 10
+> mundial ya no se titula "de Argentina" y el duelo ya no sale como "DT A vs DT B".
+> Verificado enviando el paquete de 2026-W44: 5 imágenes + 6 mensajes.
 >
 > **PLAN DE TRABAJO VIGENTE:** `docs/plan/00-INDICE.md` (índice de tareas T0.1…T5.5, con
 > reglas generales, paquetes sugeridos y paradas humanas) y los archivos `01`…`07` por fase.

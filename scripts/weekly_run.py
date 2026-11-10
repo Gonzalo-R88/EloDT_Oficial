@@ -59,6 +59,15 @@ VARIANTES = ("portrait", "landscape", "square")
 # Rotación del formato sugerido por semana ISO (el resto se genera igual).
 ROTACION = ("top10_argentina", "movers_argentina", "duelo", "top10_global")
 
+# Nombre con el que se identifica cada post en el aviso por Telegram.
+ETIQUETAS = {
+    "top10_argentina": "Top 10 Argentina",
+    "top10_global": "Top 10 mundial",
+    "movers_argentina": "Subieron y cayeron",
+    "duelo": "Duelo de pizarras",
+    "revelacion": "DT revelación",
+}
+
 
 def texto_semana(desde: date, hasta: date) -> str:
     if desde.month == hasta.month:
@@ -179,7 +188,8 @@ def render(
         else:
             archivos = _renderizar_variantes("top10.html", contexto, destino, "top10_argentina", variantes, omitidos)
             if archivos:
-                formatos.append({"formato": "top10_argentina", "archivos": archivos})
+                formatos.append({"formato": "top10_argentina",
+                                 "titulo": ETIQUETAS["top10_argentina"], "archivos": archivos})
                 textos["top10_argentina"] = textos_top10(
                     contexto["entradas"], semana_texto, partidos=partidos, pais="Argentina"
                 )
@@ -191,9 +201,10 @@ def render(
         else:
             archivos = _renderizar_variantes("top10.html", contexto, destino, "top10_global", variantes, omitidos)
             if archivos:
-                formatos.append({"formato": "top10_global", "archivos": archivos})
+                formatos.append({"formato": "top10_global",
+                                 "titulo": ETIQUETAS["top10_global"], "archivos": archivos})
                 textos["top10_global"] = textos_top10(
-                    contexto["entradas"], semana_texto, partidos=partidos, pais="Argentina"
+                    contexto["entradas"], semana_texto, partidos=partidos, pais=None
                 )
 
         # Subidas y bajadas (Argentina)
@@ -205,7 +216,8 @@ def render(
         else:
             archivos = _renderizar_variantes("movers.html", contexto, destino, "movers_argentina", variantes, omitidos)
             if archivos:
-                formatos.append({"formato": "movers_argentina", "archivos": archivos})
+                formatos.append({"formato": "movers_argentina",
+                                 "titulo": ETIQUETAS["movers_argentina"], "archivos": archivos})
                 textos["movers_argentina"] = textos_movimientos(
                     contexto["subidas"], contexto["bajadas"], semana_texto, partidos=partidos
                 )
@@ -219,7 +231,8 @@ def render(
         else:
             archivos = _renderizar_variantes("duelo.html", contexto, destino, "duelo", variantes, omitidos)
             if archivos:
-                formatos.append({"formato": "duelo", "archivos": archivos})
+                formatos.append({"formato": "duelo",
+                                 "titulo": ETIQUETAS["duelo"], "archivos": archivos})
                 textos["duelo"] = textos_duelo(contexto["duelo"], semana_texto)
 
         # DT revelación
@@ -231,7 +244,8 @@ def render(
         else:
             archivos = _renderizar_variantes("revelacion.html", contexto, destino, "revelacion", variantes, omitidos)
             if archivos:
-                formatos.append({"formato": "revelacion", "archivos": archivos})
+                formatos.append({"formato": "revelacion",
+                                 "titulo": ETIQUETAS["revelacion"], "archivos": archivos})
                 textos["revelacion"] = textos_revelacion(contexto["entrada"], semana_texto)
 
         sugerido = _formato_sugerido(cierre)
@@ -245,6 +259,7 @@ def render(
             "partidos": partidos,
             "snapshot": {"filas": snapshot.filas, "publicables": snapshot.publicables},
             "generados": formatos,
+            "textos": {formato: {"texto": t.texto, "alt": t.alt} for formato, t in textos.items()},
             "omitidos": omitidos,
             "sugerido": sugerido,
             "carpeta": str(destino),
@@ -289,18 +304,18 @@ def _escribir_paquete(
     lineas = [f"# Paquete semanal — {semana_texto}", ""]
     lineas.append(f"Modelo `{resumen['modelo']}` · {resumen['partidos']} partidos en la ventana.")
     lineas.append("")
+    titulos = {f["formato"]: f.get("titulo", f["formato"]) for f in resumen["generados"]}
     if sugerido and sugerido in textos:
         elegido = textos[sugerido]
-        lineas += [f"## Formato sugerido: {sugerido}", "", "### LinkedIn", "", elegido.linkedin, ""]
-        lineas += ["### X", "", elegido.x, ""]
-        lineas += ["### Instagram", "", elegido.instagram, ""]
-        lineas += ["### Texto alternativo de la imagen", "", elegido.alt, ""]
+        lineas += [f"## Formato sugerido: {titulos.get(sugerido, sugerido)}", ""]
+        lineas += ["### Texto (X y LinkedIn)", "", elegido.texto, ""]
+        lineas += ["### Alt de la imagen", "", elegido.alt, ""]
     for formato, contenido in textos.items():
         if formato == sugerido:
             continue
-        lineas += [f"## {formato}", "", "### LinkedIn", "", contenido.linkedin, "",
-                   "### X", "", contenido.x, "", "### Instagram", "", contenido.instagram,
-                   "", "### Alt", "", contenido.alt, ""]
+        lineas += [f"## {titulos.get(formato, formato)}", ""]
+        lineas += ["### Texto (X y LinkedIn)", "", contenido.texto, ""]
+        lineas += ["### Alt de la imagen", "", contenido.alt, ""]
     if resumen["omitidos"]:
         lineas += ["## Formatos omitidos", ""]
         lineas += [f"- **{o['formato']}**: {o['motivo']}" for o in resumen["omitidos"]]
@@ -713,8 +728,9 @@ def main(argv: list[str] | None = None) -> int:
             if resultado.get("test"):
                 print("mensaje de prueba enviado")
             else:
-                print(f"enviado: {resultado['documentos']} imágenes del formato "
-                      f"{resultado['sugerido']} + {resultado['mensajes']} mensajes")
+                print(f"enviado: {resultado['posts']} posts "
+                      f"({resultado['documentos']} imágenes + {resultado['mensajes']} mensajes) · "
+                      f"sugerido: {resultado['sugerido']}")
         return 0
 
     if args.comando == "all":
@@ -764,7 +780,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"semana {paquete['semana_iso']}: {paquete['partidos']} partidos, "
                   f"{len(paquete['generados'])} formatos")
             if envio.get("ok"):
-                print(f"telegram: {envio['documentos']} imágenes + {envio['mensajes']} mensajes")
+                print(f"telegram: {envio['posts']} posts enviados "
+                      f"({envio['documentos']} imágenes + {envio['mensajes']} mensajes)")
             else:
                 print(f"telegram: no se pudo enviar ({envio.get('error')}) — "
                       f"el paquete está en {paquete['carpeta']}")

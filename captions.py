@@ -1,8 +1,11 @@
-"""Textos sugeridos para publicar cada imagen (LinkedIn, X, Instagram y alt text).
+"""Textos sugeridos para publicar cada imagen.
 
 Son plantillas deterministas (sin LLM): el mismo dato produce el mismo texto, así el
-pipeline semanal no depende de servicios externos ni gasta tokens. Se generan tres
-versiones porque el largo y el tono cambian por red.
+pipeline semanal no depende de servicios externos ni gasta tokens.
+
+Sale **un solo texto** por pieza, pensado para entrar en el límite de X (280 caracteres) y
+servir tal cual en LinkedIn. Sin hashtags, sin nombrar la fuente de los datos y sin el
+handle (la cuenta no se menciona a sí misma; el handle va en la imagen).
 """
 
 from __future__ import annotations
@@ -10,19 +13,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-HANDLE = "@EloDT_oficial"
-HASHTAGS = "#AEP #DTs #ELO #Futbol"
-LIMITE_X = 280
-FUENTE = "Datos: Transfermarkt · ELO propio (modelo AEP)."
+LIMITE_POST = 280
+CIERRE = "Ranking ELO propio, nuevo cada lunes."
 
 
 @dataclass(frozen=True)
 class Textos:
-    """Los cuatro textos que acompañan a una imagen."""
+    """El texto que acompaña a la imagen, con su descripción accesible."""
 
-    linkedin: str
-    x: str
-    instagram: str
+    texto: str
     alt: str
 
 
@@ -30,22 +29,30 @@ def _nombre(entrada) -> str:
     return getattr(entrada, "dt", "") or ""
 
 
+def _apellido(entrada) -> str:
+    """En un ranking manda el apellido: es como se reconoce a un DT."""
+    return _nombre(entrada).split()[-1] if _nombre(entrada) else ""
+
+
 def _elo(entrada) -> int:
     return int(round(getattr(entrada, "elo", 0)))
 
 
-def _podio(entradas: Sequence, n: int = 3, formato: str = "largo") -> str:
-    partes = []
-    for entrada in list(entradas)[:n]:
-        if formato == "corto":
-            # En X manda el apellido: es como se reconoce a un DT.
-            partes.append(f"{_nombre(entrada).split()[-1]} {_elo(entrada)}")
-        else:
-            partes.append(f"{getattr(entrada, 'puesto', '')}. {_nombre(entrada)} ({_elo(entrada)})")
-    return " · ".join(partes) if formato == "corto" else "\n".join(partes)
+def _decimal(valor: float, decimales: int = 1, signo: bool = False) -> str:
+    """Número con coma decimal, como se escribe en español."""
+    formato = f"+.{decimales}f" if signo else f".{decimales}f"
+    return f"{valor:{formato}}".replace(".", ",")
 
 
-def _recortar(texto: str, limite: int = LIMITE_X) -> str:
+def _podio(entradas: Sequence, n: int = 3) -> str:
+    """El podio en tres líneas: '1. Arruabarrena 1217'."""
+    return "\n".join(
+        f"{puesto}. {_apellido(entrada)} {_elo(entrada)}"
+        for puesto, entrada in enumerate(list(entradas)[:n], 1)
+    )
+
+
+def _recortar(texto: str, limite: int = LIMITE_POST) -> str:
     """Recorta en el último espacio antes del límite y agrega puntos suspensivos."""
     if len(texto) <= limite:
         return texto
@@ -57,43 +64,23 @@ def _recortar(texto: str, limite: int = LIMITE_X) -> str:
 def textos_top10(
     entradas: Sequence,
     semana_texto: str,
-    titulo: str = "Top 10 DTs de Argentina",
+    titulo: Optional[str] = None,
     partidos: Optional[int] = None,
-    handle: str = HANDLE,
+    handle: str = "",
     pais: Optional[str] = None,
 ) -> Textos:
-    """Textos para el ranking semanal (Top 10)."""
+    """Texto del ranking semanal (Top 10)."""
     if not entradas:
         raise ValueError("No hay entradas para generar los textos.")
 
     lider = entradas[0]
-    podio_largo = _podio(entradas, 3)
-    podio_corto = _podio(entradas, 3, formato="corto")
-    etiqueta_pais = f" de {pais}" if pais and pais not in titulo else ""
-    detalle_partidos = f" ({partidos} partidos)" if partidos else ""
+    titulo = titulo or (f"Top 10 DTs de {pais}" if pais else "Top 10 DTs del mundo")
+    gancho = "¿Quién está más alto de lo que debería?"
 
-    linkedin = (
-        f"{titulo} — {semana_texto}{detalle_partidos}\n\n"
-        f"{podio_largo}\n\n"
-        "El ranking se arma con un modelo ELO propio: cada entrenador aparece con su "
-        "club actual y sólo si dirigió en el último año. Gana el que acumula mejores "
-        "resultados frente a rivales más exigentes, no el que más partidos jugó.\n\n"
-        f"¿Quién te parece que está más alto de lo que debería? Te leo.\n\n"
-        f"{HASHTAGS}\n{FUENTE}"
-    )
-
-    x = (
-        f"🏆 {titulo}{etiqueta_pais} ({semana_texto}): "
-        f"{podio_corto}. "
-        f"Ranking ELO propio, datos Transfermarkt. {handle}"
-    )
-
-    instagram = (
-        f"🏆 {titulo} — {semana_texto}\n\n"
-        f"El N°1: {_nombre(lider)} ({_elo(lider)}).\n"
-        f"Podio: {podio_corto}.\n\n"
-        f"Ranking ELO propio. {FUENTE}\n"
-        f"{HASHTAGS}"
+    texto = _recortar(
+        f"🏆 {titulo} · {semana_texto}\n"
+        f"{_podio(entradas)}\n"
+        f"{CIERRE} {gancho}"
     )
 
     if len(entradas) >= 3:
@@ -105,7 +92,7 @@ def textos_top10(
     else:
         alt = f"{titulo}: {semana_texto}."
 
-    return Textos(linkedin=linkedin, x=_recortar(x), instagram=instagram, alt=alt)
+    return Textos(texto=texto, alt=alt)
 
 
 def textos_movimientos(
@@ -113,80 +100,66 @@ def textos_movimientos(
     bajadas: Sequence,
     semana_texto: str,
     partidos: Optional[int] = None,
-    handle: str = HANDLE,
+    handle: str = "",
 ) -> Textos:
-    """Textos para "subieron / cayeron"."""
+    """Texto de "subieron / cayeron"."""
     if not subidas and not bajadas:
         raise ValueError("No hay movimientos para generar los textos.")
 
     arriba = subidas[0] if subidas else None
     abajo = bajadas[0] if bajadas else None
-    detalle = f" ({partidos} partidos)" if partidos else ""
 
     gancho = ""
     if arriba:
-        gancho += f"Subió más: {_nombre(arriba)} (+{getattr(arriba, 'delta', 0):.1f}). "
+        gancho += f"Subió más: {_nombre(arriba)} (+{_decimal(getattr(arriba, 'delta', 0))}). "
     if abajo:
-        gancho += f"Bajó más: {_nombre(abajo)} ({getattr(abajo, 'delta', 0):.1f})."
+        gancho += f"Bajó más: {_nombre(abajo)} ({_decimal(getattr(abajo, 'delta', 0))})."
 
-    linkedin = (
-        f"Subieron y cayeron — {semana_texto}{detalle}\n\n"
-        f"{gancho}\n\n"
-        "Cada semana el ELO se mueve con los resultados: ganarle a un rival fuerte suma "
-        "más que golear a uno débil, y perder de local cuesta más que perder de visitante.\n\n"
-        f"¿A quién le tenés fe para la próxima fecha?\n\n{HASHTAGS}\n{FUENTE}"
-    )
-    x = _recortar(f"📈 {semana_texto}: {gancho} Ranking ELO propio, datos Transfermarkt. {handle}")
-    instagram = (
-        f"📈 Subieron y cayeron — {semana_texto}\n\n{gancho}\n\n"
-        f"ELO propio. {FUENTE}\n{HASHTAGS}"
+    texto = _recortar(
+        f"📈 Subieron y cayeron · {semana_texto}\n"
+        f"{gancho.strip()}\n"
+        f"{CIERRE} ¿A quién le tenés fe para la próxima fecha?"
     )
     alt = f"Gráfico de subidas y bajadas de ELO de la semana {semana_texto}. {gancho}"
 
-    return Textos(linkedin=linkedin, x=x, instagram=instagram, alt=alt)
+    return Textos(texto=texto, alt=alt)
 
 
 def textos_duelo(
     duelo,
     semana_texto: str,
-    handle: str = HANDLE,
+    handle: str = "",
 ) -> Textos:
-    """Textos para el duelo de la semana entre dos DTs."""
-    nombre_a = getattr(duelo, "dt_a", None) or "DT A"
-    nombre_b = getattr(duelo, "dt_b", None) or "DT B"
-    club_a = getattr(duelo, "club_a", "")
-    club_b = getattr(duelo, "club_b", "")
+    """Texto del duelo de la semana entre dos DTs.
+
+    `duelo` es el `DueloSemana` del partido (dt_a_id/club_a/elo_a + el `Duel` interno,
+    que es donde están los nombres y los clubes).
+    """
+    interno = getattr(duelo, "duelo", None)
+    lado_a = getattr(interno, "a", None)
+    lado_b = getattr(interno, "b", None)
+
+    nombre_a = getattr(lado_a, "nombre", None) or f"DT {getattr(duelo, 'dt_a_id', 'A')}"
+    nombre_b = getattr(lado_b, "nombre", None) or f"DT {getattr(duelo, 'dt_b_id', 'B')}"
+    club_a = getattr(lado_a, "club", None) or getattr(duelo, "club_a", "") or ""
+    club_b = getattr(lado_b, "club", None) or getattr(duelo, "club_b", "") or ""
     combinado = getattr(duelo, "elo_combinado", 0.0)
 
-    linkedin = (
-        f"Duelo de pizarras — {semana_texto}\n\n"
-        f"{nombre_a} ({club_a}) contra {nombre_b} ({club_b}): "
-        f"{combinado:.0f} puntos de ELO combinados en el banco.\n\n"
-        "Los dos técnicos se enfrentaron con planteles distintos y trayectorias "
-        "distintas; el ELO mide lo que cada uno sostuvo en el tiempo.\n\n"
-        f"¿Quién gana este duelo para vos?\n\n{HASHTAGS}\n{FUENTE}"
-    )
-    x = _recortar(
-        f"⚔️ {nombre_a} vs {nombre_b} ({semana_texto}): {combinado:.0f} de ELO combinado. "
-        f"Ranking ELO propio. {handle}"
-    )
-    instagram = (
-        f"⚔️ Duelo de pizarras — {semana_texto}\n\n{nombre_a} vs {nombre_b}\n"
-        f"{combinado:.0f} puntos de ELO combinados.\n\n{hashtags_linea()}"
+    texto = _recortar(
+        f"⚔️ Duelo de pizarras · {semana_texto}\n"
+        f"{nombre_a} ({club_a}) vs {nombre_b} ({club_b}): "
+        f"{combinado:.0f} de ELO combinado.\n"
+        f"{CIERRE} ¿Quién gana este duelo para vos?"
     )
     alt = (
         f"Gráfico comparando a {nombre_a} y {nombre_b}, con sus ELO y su historial "
         f"de enfrentamientos."
     )
-    return Textos(linkedin=linkedin, x=x, instagram=instagram, alt=alt)
+    return Textos(texto=texto, alt=alt)
 
 
-def hashtags_linea() -> str:
-    return f"{HASHTAGS}\n{FUENTE}"
-
-
-def textos_revelacion(entrada, semana_texto: str, handle: str = HANDLE) -> Textos:
-    """Textos para el "DT revelación"."""
+def textos_revelacion(entrada, semana_texto: str, handle: str = "") -> Textos:
+    """Texto del "DT revelación"."""
     nombre = getattr(entrada, "dt", "DT")
     club = getattr(entrada, "club", "") or ""
     elo = getattr(entrada, "elo", 0.0)
@@ -195,26 +168,15 @@ def textos_revelacion(entrada, semana_texto: str, handle: str = HANDLE) -> Texto
     desde = getattr(entrada, "desde_primera_fecha", None)
     desde_texto = desde.strftime("%d/%m/%Y") if desde else "hace poco"
 
-    linkedin = (
-        f"DT revelación — {semana_texto}\n\n"
-        f"{nombre} ({club}) lleva {pj} partidos desde {desde_texto} y ya suma "
-        f"{int(round(elo))} puntos de ELO"
-        + (f" (+{variacion:.1f} en los últimos 90 días)." if variacion else ".")
-        + "\n\n"
-        "El ranking mira resultados y contexto: no premia al que más partidos jugó, sino "
-        "al que sostuvo mejores resultados frente a rivales más exigentes.\n\n"
-        f"¿Lo tenías en el radar?\n\n{HASHTAGS}\n{FUENTE}"
-    )
-    x = _recortar(
-        f"🔎 DT revelación: {nombre} ({club}) con {int(round(elo))} de ELO tras {pj} "
-        f"partidos. ELO propio. {handle}"
-    )
-    instagram = (
-        f"🔎 DT revelación — {semana_texto}\n\n{nombre} ({club})\n"
-        f"{int(round(elo))} de ELO · {pj} partidos\n\n{HASHTAGS}\n{FUENTE}"
+    detalle = f"{int(round(elo))} de ELO en {pj} partidos desde el {desde_texto}"
+    texto = _recortar(
+        f"🔎 DT revelación · {semana_texto}\n"
+        f"{nombre} ({club}): {detalle}."
+        + (f" {_decimal(variacion, signo=True)} en los últimos 90 días." if variacion else "")
+        + f"\n{CIERRE}"
     )
     alt = (
         f"Gráfico del DT revelación: {nombre}, de {club}, con {int(round(elo))} puntos "
         f"de ELO en {pj} partidos."
     )
-    return Textos(linkedin=linkedin, x=x, instagram=instagram, alt=alt)
+    return Textos(texto=texto, alt=alt)

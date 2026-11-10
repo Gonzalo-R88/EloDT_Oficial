@@ -6,7 +6,14 @@ from datetime import date
 import pytest
 
 from content import EntradaTop
-from render_html import VARIANTES, dimensiones, render_png, renderizar_html, tamano_bytes
+from render_html import (
+    TEMPLATES_DIR,
+    VARIANTES,
+    dimensiones,
+    render_png,
+    renderizar_html,
+    tamano_bytes,
+)
 
 
 def _entradas(cantidad: int = 10, nombre_largo: bool = False) -> list[EntradaTop]:
@@ -40,7 +47,7 @@ def _contexto(entradas=None, **extra):
         "entradas": entradas or _entradas(),
         "partidos": 42,
         "modelo": "elo-v2",
-        "handle": "@AEP_Analitica",
+        "handle": "@EloDT_oficial",
     }
     contexto.update(extra)
     return contexto
@@ -109,6 +116,17 @@ def test_sin_variacion_no_dibuja_flecha():
 
 
 # ---------------------------------------------------------------------------
+# Lo que no debe aparecer nunca en una imagen publicada
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("plantilla", ["top10.html", "movers.html", "duelo.html", "revelacion.html"])
+def test_las_plantillas_no_nombran_la_fuente_ni_el_handle_viejo(plantilla):
+    html = (TEMPLATES_DIR / plantilla).read_text(encoding="utf-8")
+
+    assert "Transfermarkt" not in html
+    assert "AEP_Analitica" not in html
+
+
+# ---------------------------------------------------------------------------
 # Subidas y bajadas (T3.4)
 # ---------------------------------------------------------------------------
 def _movimientos():
@@ -129,7 +147,7 @@ def _contexto_movimientos():
         "subidas": [entrada, interino],
         "bajadas": [replace(entrada, dt="DT Que Baja", delta=-9.4)],
         "partidos": 5,
-        "handle": "@AEP_Analitica",
+        "handle": "@EloDT_oficial",
     }
 
 
@@ -185,7 +203,7 @@ def _contexto_duelo():
             "puntos_a": "10,10 500,120 990,200",
             "puntos_b": "10,200 500,120 990,10",
         },
-        "handle": "@AEP_Analitica",
+        "handle": "@EloDT_oficial",
     }
 
 
@@ -213,7 +231,7 @@ def _contexto_revelacion():
             elo=1115.0, pj=68, desde_primera_fecha=date(2025, 2, 1),
             variacion=43.5, etiqueta=None,
         ),
-        "handle": "@AEP_Analitica",
+        "handle": "@EloDT_oficial",
     }
 
 

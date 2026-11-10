@@ -10,10 +10,11 @@ Sin credenciales, `enviar_*` levanta `FaltaConfiguracion` y el pipeline lo repor
 
 from __future__ import annotations
 
+import html
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import requests
 
@@ -94,59 +95,87 @@ def _partir(texto: str, limite: int = LIMITE_TEXTO - 100) -> list[str]:
     return trozos
 
 
-def enviar_paquete(carpeta: Path | str, solo_sugerido: bool = True) -> dict:
-    """Manda el paquete de la semana: imágenes + resumen + textos sugeridos.
+def enviar_paquete(carpeta: Path | str, variante: str = "landscape") -> dict:
+    """Manda el paquete de la semana: una imagen y un texto por post, más la cabecera.
 
-    Por defecto envía las imágenes del **formato sugerido** (las tres variantes) para
-    no inundar el chat; el resto queda en `post.md` dentro de la carpeta.
+    Cada post llega identificado (número, nombre y red) y después su texto, en un bloque
+    monoespaciado para copiarlo de una pieza. Se envía la variante apaisada porque es la
+    que X y LinkedIn muestran completa; los otros tamaños quedan en la carpeta.
     """
     raiz = Path(carpeta)
     resumen = json.loads((raiz / "summary.json").read_text(encoding="utf-8"))
-    post = (raiz / "post.md").read_text(encoding="utf-8") if (raiz / "post.md").exists() else ""
-
+    generados = list(resumen.get("generados", []))
+    textos = resumen.get("textos", {})
     sugerido = resumen.get("sugerido")
-    archivos = []
-    for formato in resumen.get("generados", []):
-        if solo_sugerido and formato["formato"] != sugerido:
-            continue
-        archivos.extend(raiz / nombre for nombre in formato["archivos"])
 
-    enviados = []
-    for archivo in archivos:
-        enviados.append(enviar_documento(archivo, caption=archivo.stem.replace("_", " ")))
+    # El sugerido primero; el resto conserva el orden de generación.
+    orden = sorted(generados, key=lambda formato: formato["formato"] != sugerido)
 
-    mensaje = _armar_mensaje(resumen, post)
-    mensajes_enviados = enviar_texto(mensaje)
+    enviar_texto(_cabecera(resumen, orden, sugerido))
+
+    documentos = 0
+    mensajes = 0
+    for indice, formato in enumerate(orden, 1):
+        nombre = formato["formato"]
+        etiqueta = formato.get("titulo", nombre)
+        archivo = _elegir_archivo(raiz, formato.get("archivos", []), variante)
+        if archivo:
+            enviar_documento(archivo, caption=_caption_post(indice, len(orden), etiqueta, nombre == sugerido))
+            documentos += 1
+        enviar_texto(_texto_del_post(etiqueta, textos.get(nombre, {})))
+        mensajes += 1
 
     return {
         "ok": True,
-        "documentos": len(archivos),
-        "mensajes": len(mensajes_enviados),
+        "posts": len(orden),
+        "documentos": documentos,
+        "mensajes": mensajes + 1,  # + la cabecera
         "sugerido": sugerido,
     }
 
 
-def _armar_mensaje(resumen: dict, post: str) -> str:
-    """Resumen corto + textos sugeridos, en HTML de Telegram."""
+def _elegir_archivo(raiz: Path, archivos: Sequence[str], variante: str) -> Optional[Path]:
+    """El archivo de la variante pedida; si no está, el primero que haya."""
+    for nombre in archivos:
+        if f"_{variante}." in nombre:
+            return raiz / nombre
+    return raiz / archivos[0] if archivos else None
+
+
+def _caption_post(indice: int, total: int, etiqueta: str, sugerido: bool) -> str:
+    """Leyenda de la imagen: qué post es, para qué red y si es el sugerido."""
+    estrellas = " ⭐ sugerido" if sugerido else ""
+    return f"POST {indice} de {total} · {etiqueta}{estrellas} · X + LinkedIn"
+
+
+def _texto_del_post(etiqueta: str, contenido: dict) -> str:
+    """El texto para copiar, en bloque monoespaciado, más el alt de la imagen."""
+    lineas = [f"<b>Texto del post — {_escapar(etiqueta)}</b> (X y LinkedIn)"]
+    texto = contenido.get("texto")
+    if texto:
+        lineas += ["<code>" + _escapar(texto) + "</code>"]
+    alt = contenido.get("alt")
+    if alt:
+        lineas += ["<i>Alt de la imagen:</i>", "<code>" + _escapar(alt) + "</code>"]
+    return "\n".join(lineas)
+
+
+def _cabecera(resumen: dict, orden: list, sugerido: Optional[str]) -> str:
+    """Encabezado del paquete: qué semana es y qué trae."""
+    etiquetas = {formato["formato"]: formato.get("titulo", formato["formato"]) for formato in orden}
     lineas = [
-        f"<b>Paquete semanal AEP</b> — {resumen.get('semana_iso')}",
-        f"{resumen.get('partidos')} partidos · {resumen.get('snapshot', {}).get('publicables')} DTs publicables",
-        f"Formato sugerido: <b>{resumen.get('sugerido')}</b>",
-        "",
+        f"<b>Paquete semanal ELO DT</b> — {resumen.get('semana_iso')}",
+        f"{resumen.get('partidos')} partidos · "
+        f"{resumen.get('snapshot', {}).get('publicables')} DTs publicables",
+        f"{len(orden)} posts · sugerido: <b>{_escapar(str(etiquetas.get(sugerido, sugerido)))}</b>",
     ]
     if resumen.get("omitidos"):
-        lineas.append("<i>Omitidos:</i> " + ", ".join(
-            f"{o['formato']} ({o['motivo']})" for o in resumen["omitidos"][:4]
-        ))
-        lineas.append("")
-
-    # Del post.md se toma sólo la sección de X: es la que se usa para publicar rápido.
-    bloque_x = ""
-    if "### X" in post:
-        resto = post.split("### X", 1)[1]
-        bloque_x = resto.split("###", 1)[0].strip()
-    if bloque_x:
-        lineas += ["<b>Texto para X:</b>", bloque_x, ""]
-
-    lineas.append(f"Archivos en <code>{resumen.get('carpeta')}</code>")
+        omitidos = ", ".join(o["formato"] for o in resumen["omitidos"])
+        lineas.append(f"<i>Sin generar:</i> {_escapar(omitidos)}")
+    lineas.append("Cada post va con su imagen y su texto.")
     return "\n".join(lineas)
+
+
+def _escapar(texto: str) -> str:
+    """Telegram parsea HTML: los nombres con `&`, `<` o `>` romperían el mensaje."""
+    return html.escape(texto, quote=False)
