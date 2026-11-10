@@ -34,6 +34,14 @@ trabajo; si la semana ya se procesó, el comando sale en <2 s sin tocar nada.
 por el lock `data/weekly.lock`. Si n8n no está corriendo, la tarea `AEP-Semanal` salva la
 semana; si n8n corre, es la que gana. Nunca se duplica el envío.
 
+### La semana cierra el lunes, no el domingo
+
+`semana_fin()` sin fecha, si hoy es **domingo**, devuelve el domingo **anterior**. Motivo: un
+paquete armado el domingo a la mañana saldría sin los partidos de ese día (se juegan a la
+tarde) y el lunes el `--skip-if-done-this-week` lo daría por hecho, así que la semana se
+publicaría incompleta y sin arreglo. Con fecha explícita un domingo se respeta —la función es
+idempotente—, para que `--semana-fin` siga significando lo que dice.
+
 ## 3. Configuración que hace que funcione
 
 En `windows/n8n_start.bat`, todas críticas:

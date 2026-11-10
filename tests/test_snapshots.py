@@ -60,8 +60,31 @@ def db():
 def test_semana_fin_es_el_domingo_anterior():
     # 2024-05-15 es miércoles; el domingo de esa semana es el 12.
     assert semana_fin(date(2024, 5, 15)) == date(2024, 5, 12)
-    # Un domingo se devuelve a sí mismo.
-    assert semana_fin(date(2024, 5, 12)) == date(2024, 5, 12)
+    # El lunes publica la semana que cerró el domingo anterior.
+    assert semana_fin(date(2024, 5, 13)) == date(2024, 5, 12)
+
+
+def test_semana_fin_con_fecha_explicita_es_idempotente():
+    """Un domingo pasado a mano se respeta: el pipeline lo usa como cierre explícito."""
+    domingo = date(2024, 5, 12)
+
+    assert semana_fin(domingo) == domingo
+    assert semana_fin(semana_fin(domingo)) == domingo
+
+
+def test_el_domingo_por_defecto_es_el_anterior(monkeypatch):
+    """Sin fecha y en domingo, la semana todavía no cerró: si devolviera hoy, el paquete
+    saldría sin los partidos de ese día y el lunes se saltearía por estar "hecha"."""
+    import snapshots
+
+    class _Hoy(date):
+        @classmethod
+        def today(cls):
+            return date(2024, 5, 12)  # domingo
+
+    monkeypatch.setattr(snapshots, "date", _Hoy)
+
+    assert snapshots.semana_fin() == date(2024, 5, 5)
 
 
 def test_elo_al_cierre_toma_el_ultimo_partido_antes_de_la_fecha(db):

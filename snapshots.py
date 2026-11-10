@@ -35,9 +35,17 @@ def semana_fin(fecha: Optional[date] = None) -> date:
 
     Es la fecha con la que se publica: el lunes se publica la semana que cerró el
     domingo anterior.
+
+    Sin fecha y **hoy domingo**, devuelve el domingo anterior, no hoy: la semana todavía
+    no cerró y un paquete armado el domingo a la mañana saldría sin los partidos de ese
+    día; el lunes se saltearía por estar "ya hecha". Con una fecha explícita, un domingo
+    se devuelve a sí mismo (la función es idempotente).
     """
-    referencia = fecha or date.today()
-    return referencia - timedelta(days=(referencia.weekday() + 1) % 7)
+    if fecha is None:
+        hoy = date.today()
+        corridos = (hoy.weekday() + 1) % 7 or 7
+        return hoy - timedelta(days=corridos)
+    return fecha - timedelta(days=(fecha.weekday() + 1) % 7)
 
 
 def _participaciones():

@@ -6,6 +6,11 @@
 > Logo: `assets/brand/perfil.png` (generado con `scripts/logo.py`) y
 > `assets/brand/Banner ajustado.jpg` (versión final del banner, hecha a mano por Gonzalo). El handle ya reemplazó al placeholder en todo el código.
 >
+> **Calendario (2026-11-10):** la semana se cierra el lunes. `semana_fin()` sin fecha, si hoy
+> es domingo, devuelve el domingo anterior (si no, el paquete del domingo a la mañana saldría
+> sin los partidos de ese día y el lunes se saltearía por estar "hecha"). Con fecha explícita
+> el domingo se respeta, así `--semana-fin` no cambia de sentido.
+>
 > **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
 > leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque
 > monoespaciado para copiar. **Un solo texto por pieza** (≤280, sirve para X y LinkedIn),

@@ -219,7 +219,7 @@ def render(
     """Genera el paquete de la semana y devuelve el resumen."""
     session = create_session()
     try:
-        cierre = semana_fin(cierre or date.today())
+        cierre = semana_fin(cierre)
         snapshot = take_snapshot(session, hasta=cierre)
         session.commit()
 
@@ -494,7 +494,7 @@ def update(
     max_minutos: Optional[int] = None,
 ) -> tuple[int, dict]:
     """Actualización semanal completa. Devuelve `(codigo_salida, resumen)`."""
-    cierre = semana_fin(cierre or date.today())
+    cierre = semana_fin(cierre)
 
     if skip_if_done:
         session = create_session()
