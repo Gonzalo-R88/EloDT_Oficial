@@ -3,8 +3,8 @@
 Última actualización: 2026-11-10.
 
 > **Marca (2026-11-10):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
-> Logo: `assets/brand/perfil.png` y `banner.png` (diseño de marcador; se regeneran con
-> `python3 scripts/logo.py`). El handle ya reemplazó al placeholder en todo el código.
+> Logo: `assets/brand/perfil.png` (generado con `scripts/logo.py`) y
+> `assets/brand/Banner ajustado.jpg` (versión final del banner, hecha a mano por Gonzalo). El handle ya reemplazó al placeholder en todo el código.
 >
 > **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
 > leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque

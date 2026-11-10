@@ -81,6 +81,12 @@ n8n.cmd publish:workflow   --id=<id del workflow>
   (la entrada de `/etc/hosts` que ya usa Postgres).
 - El destino de Telegram es el chat **personal** (`TELEGRAM_CHAT_ID` en `.env`), no el canal
   `@AEP_Analitica`: con el handle, el nodo devolvía `400 chat not found`.
+- **`winhost` se pierde en cada arranque de WSL**: `/etc/hosts` se regenera y la línea que
+  apunta al Postgres de Windows desaparece. El `update_winhost` de `~/.bashrc` lo arregla
+  sólo en terminales interactivas, y estas corridas no lo son, así que la tarea fallaba con
+  `could not translate host name "winhost"`. `scripts/entrada_windows.sh` ahora detecta que
+  `winhost` no resuelve y usa como respaldo el **gateway por defecto**, que en WSL2 es la IP
+  del host de Windows (no necesita permisos).
 
 ## 5. Cómo probarlo
 
