@@ -40,7 +40,7 @@
     .panel.baja .panel-titulo { background: var(--violeta); }
     .lista { flex: 1; display: grid; grid-auto-rows: 1fr; min-height: 0; }
     .item {
-      display: flex; align-items: center; gap: 2vw;
+      display: flex; align-items: center; gap: 1.2vw;
       padding: 0 2.4vw;
       border-top: 1px solid var(--borde);
       min-width: 0;
@@ -59,12 +59,14 @@
       font-size: 1.2vh; font-weight: 600; color: var(--lila);
       text-transform: uppercase; letter-spacing: 0.04em;
     }
+    /* Anchos justos: el nombre se cortaba ("Guillermo Barros Sch…") porque el delta y el
+       ELO reservaban 20vw entre los dos. */
     .item .delta {
-      font-family: "Anton", sans-serif; font-size: 2.6vh; min-width: 13vw; text-align: right;
+      font-family: "Anton", sans-serif; font-size: 2.6vh; min-width: 7vw; text-align: right;
     }
     .panel.sube .delta { color: var(--celeste); }
     .panel.baja .delta { color: var(--violeta); }
-    .item .elo { font-size: 1.4vh; color: var(--muted); min-width: 7vw; text-align: right; }
+    .item .elo { font-size: 1.4vh; color: var(--muted); min-width: 4.5vw; text-align: right; }
 
     .pie { padding: 1.4vh 7vw 2.2vh; font-size: 1.7vh; }
 
@@ -107,7 +109,7 @@
     </div>
 
     <div class="pie">
-      <span>{{ partidos }} partidos analizados · ELO propio</span>
+      <span>ELO propio</span>
       <span>{{ handle }}</span>
     </div>
   </div>

@@ -200,6 +200,9 @@ def _contexto_duelo():
         ),
         "grafico": {
             "ancho": 1000, "alto": 220, "semanas": 12,
+            "minimo": 1138.0, "maximo": 1141.0,
+            "serie_a": {"apellido": "Diez", "elo": 1138.0, "delta": -12.6},
+            "serie_b": {"apellido": "Berti", "elo": 1141.0, "delta": 8.3},
             "puntos_a": "10,10 500,120 990,200",
             "puntos_b": "10,200 500,120 990,10",
         },
@@ -218,6 +221,18 @@ def test_duelo_renderiza_y_no_duplica_el_nombre(tmp_path, nombre):
     assert "Nicolás Diez" in html
     assert "Nicolás Diez Diez" not in html
     assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
+
+
+def test_el_grafico_del_duelo_dice_quien_es_quien_y_cuanto_se_movio():
+    """Antes eran dos líneas gruesas sin referencia: no se sabía de quién era cada una."""
+    html = renderizar_html("duelo.html", _contexto_duelo(), "landscape")
+
+    assert "Diez" in html and "Berti" in html      # leyenda
+    assert "1138" in html and "1141" in html        # escala del gráfico
+    assert "-12,6" in html                          # caída en la ventana
+    assert "8,3" in html                            # subida en la ventana
+    # El trazo no debe engordar al estirarse el SVG.
+    assert 'vector-effect="non-scaling-stroke"' in html
 
 
 def _contexto_revelacion():

@@ -173,6 +173,52 @@ def test_movers_marca_la_etiqueta_del_interino(db, cobertura):
     assert interino.etiqueta == "interino"
 
 
+def test_movers_no_pierde_a_los_que_bajaron_en_un_pais(monkeypatch):
+    """El ranking se cortaba globalmente (top 40) antes de filtrar por país.
+
+    Con 60 bajadas extranjeras más grandes que la argentina, el filtro nacional se
+    quedaba sin nadie y la columna "cayeron" salía vacía.
+    """
+    from datetime import date
+
+    from ranking import PowerRanking, RankingEntry
+    import content
+
+    def entrada(dt_id, delta):
+        return RankingEntry(
+            dt_id=dt_id, nombre=f"DT {dt_id}", club=f"Club {dt_id}",
+            elo_previo=1200.0 + delta, elo_actual=1200.0, delta=delta, partidos=1,
+        )
+
+    extranjeros = [entrada(i, -30.0 + i / 100) for i in range(1, 61)]  # ordenados
+    argentino = entrada(999, -12.6)
+    todos = extranjeros + [argentino]
+
+    def ranking_falso(*_, **kwargs):
+        # Como el real: recorta a `top`, que es lo que dejaba afuera al argentino.
+        top = kwargs["top"]
+        return PowerRanking(
+            desde=date(2026, 6, 1), hasta=CIERRE,
+            subidas=[], bajadas=todos[:top], total_partidos=1,
+        )
+
+    monkeypatch.setattr(content, "compute_power_ranking", ranking_falso)
+    monkeypatch.setattr(
+        content, "estado_publicacion",
+        lambda *_, **__: {e.dt_id: _Estado() for e in todos},
+    )
+    monkeypatch.setattr(content, "_pais_por_dt", lambda *_, **__: {**{e.dt_id: "España" for e in extranjeros}, 999: "Argentina"})
+
+    mov = content.movers(None, semana_fin=CIERRE, dias=7, pais="Argentina")
+
+    assert [e.dt_id for e in mov.bajadas] == [999]
+
+
+class _Estado:
+    en_movimientos = True
+    etiqueta = None
+
+
 def test_duelo_de_la_semana_elige_el_partido_con_mas_elo(db, cobertura):
     session, datos = db
     process_match_elo(

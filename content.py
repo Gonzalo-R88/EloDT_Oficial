@@ -32,6 +32,10 @@ from snapshots import snapshot_hace, snapshot_previo
 
 DIAS_VENTANA_MOVERS = 7
 DIAS_REVELACION = 90
+# El ranking de movers se corta DESPUÉS de filtrar por país y publicación, así que hay que
+# pedirle material de sobra: con un corte global chico (40) no quedaba ningún argentino
+# entre los que bajaron y la columna "cayeron" salía vacía.
+SIN_CORTE = 5000
 ANIOS_REVELACION = 2
 
 
@@ -227,11 +231,14 @@ def movers(
 
     Incluye a los interinos (5-14 partidos) con su etiqueta; excluye a los DTs que no
     pasan las reglas de publicación (inactivos, ligas sin datos, selecciones).
+
+    El ranking se pide sin corte global: el filtro por país se aplica después, y si el
+    corte viniera antes los que bajaron en ese país podían quedar afuera (columna vacía).
     """
     cierre = _cierre(semana_fin)
     desde = cierre - timedelta(days=dias - 1)
     ranking = compute_power_ranking(
-        session, desde=desde, hasta=cierre, dias=dias, top=max(n * 6, 40)
+        session, desde=desde, hasta=cierre, dias=dias, top=SIN_CORTE
     )
 
     estados = estado_publicacion(session, hasta=cierre, ruta_cobertura=ruta_cobertura)

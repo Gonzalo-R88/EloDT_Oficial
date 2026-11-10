@@ -109,13 +109,28 @@ def _contexto_duelo(session, cierre: date, semana_texto: str):
     valores_a = [elo for _, elo in series.get(duelo.dt_a_id, [])]
     valores_b = [elo for _, elo in series.get(duelo.dt_b_id, [])]
     todos = valores_a + valores_b
+    # Si no hay serie, el gráfico queda vacío pero la escala no puede romperse.
+    minimo, maximo = (min(todos), max(todos)) if todos else (0.0, 1.0)
     ancho, alto = 1000, 220
+
+    def _lado(lado, valores):
+        """Lo que necesita la leyenda: quién es y cómo se movió en la ventana."""
+        return {
+            "apellido": getattr(lado, "apellido", "") or getattr(lado, "nombre", ""),
+            "elo": valores[-1] if valores else getattr(lado, "elo_actual", 0.0),
+            "delta": (valores[-1] - valores[0]) if len(valores) > 1 else 0.0,
+        }
+
     grafico = {
         "ancho": ancho,
         "alto": alto,
         "semanas": 12,
-        "puntos_a": polilinea(valores_a, ancho, alto, min(todos), max(todos)) if valores_a else "",
-        "puntos_b": polilinea(valores_b, ancho, alto, min(todos), max(todos)) if valores_b else "",
+        "minimo": minimo,
+        "maximo": maximo,
+        "serie_a": _lado(duelo.duelo.a, valores_a),
+        "serie_b": _lado(duelo.duelo.b, valores_b),
+        "puntos_a": polilinea(valores_a, ancho, alto, minimo, maximo) if valores_a else "",
+        "puntos_b": polilinea(valores_b, ancho, alto, minimo, maximo) if valores_b else "",
     }
     contexto = {
         "titulo": "DUELO DE PIZARRAS",
