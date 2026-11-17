@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 LIMITE_POST = 280
-CIERRE = "Ranking ELO propio, nuevo cada lunes."
+CIERRE = "Ranking ELO propio, actualizado cada semana."
+# Las ventanas FIFA no cierran con la semana: el cierre no puede decir "cada semana".
+CIERRE_SELECCIONES = "Ranking ELO propio de los seleccionadores."
 
 
 @dataclass(frozen=True)
@@ -122,6 +124,45 @@ def textos_movimientos(
     )
     alt = f"Gráfico de subidas y bajadas de ELO de la semana {semana_texto}. {gancho}"
 
+    return Textos(texto=texto, alt=alt)
+
+
+def textos_movimientos_selecciones(
+    subidas: Sequence,
+    bajadas: Sequence,
+    ventana_texto: str,
+    partidos: Optional[int] = None,
+) -> Textos:
+    """Texto del "subieron y cayeron" de una fecha FIFA (sólo seleccionadores)."""
+    if not subidas and not bajadas:
+        raise ValueError("No hay movimientos para generar los textos.")
+
+    arriba = subidas[0] if subidas else None
+    abajo = bajadas[0] if bajadas else None
+
+    def _linea(etiqueta: str, entrada, signo: bool) -> str:
+        if entrada is None:
+            return ""
+        seleccion = getattr(entrada, "club", "") or ""
+        nombre = f"{_nombre(entrada)} ({seleccion})" if seleccion else _nombre(entrada)
+        return f"{etiqueta}: {nombre} {_decimal(getattr(entrada, 'delta', 0), signo=True)}."
+
+    gancho = " ".join(
+        linea for linea in (
+            _linea("Subió más", arriba, True),
+            _linea("Bajó más", abajo, False),
+        ) if linea
+    )
+
+    texto = _recortar(
+        f"🌍 Subieron y cayeron en selecciones · fecha FIFA {ventana_texto}\n"
+        f"{gancho}\n"
+        f"{CIERRE_SELECCIONES}"
+    )
+    alt = (
+        f"Gráfico de subidas y bajadas de ELO de los seleccionadores en la fecha FIFA "
+        f"{ventana_texto}. {gancho}"
+    )
     return Textos(texto=texto, alt=alt)
 
 

@@ -158,11 +158,34 @@ def temporada_cerrada(config: CompetitionConfig, hoy: date) -> bool:
     return ultima is not None and hoy.year > ultima + 1
 
 
-def _fecha_ok(fixture: Fixture, semana_fin: Optional[date]) -> bool:
+def _fecha_ok(
+    fixture: Fixture,
+    semana_fin: Optional[date] = None,
+    ventana: Optional[tuple[date, date]] = None,
+) -> bool:
     """Si el partido entra en la ventana a publicar (sin fecha, se incluye)."""
-    if semana_fin is None or not fixture.date:
+    if not fixture.date:
         return True
-    return fixture.date[:10] <= semana_fin.isoformat()
+    dia = fixture.date[:10]
+    if ventana is not None:
+        desde, hasta = ventana
+        return desde.isoformat() <= dia <= hasta.isoformat()
+    if semana_fin is None:
+        return True
+    return dia <= semana_fin.isoformat()
+
+
+def _sin_juveniles(config: CompetitionConfig, fixtures: list[Fixture]) -> list[Fixture]:
+    """Descarta los partidos de sub-15 a sub-23 cuando la competencia mezcla categorías."""
+    if not getattr(config, "filtrar_juveniles", False):
+        return fixtures
+    from selecciones import es_juvenil
+
+    return [
+        fixture for fixture in fixtures
+        if not es_juvenil(fixture.home_club_name)
+        and not es_juvenil(fixture.away_club_name)
+    ]
 
 
 def scrape_incremental(
@@ -173,6 +196,9 @@ def scrape_incremental(
     hoy: Optional[date] = None,
     dry_run: bool = False,
     limit: Optional[int] = None,
+    ventana: Optional[tuple[date, date]] = None,
+    temporadas: Optional[list[int]] = None,
+    anios: Optional[list[int]] = None,
 ) -> dict[str, int]:
     """Baja el fixture de las temporadas en curso y **sólo** los reportes que faltan.
 
@@ -180,6 +206,9 @@ def scrape_incremental(
     reporte ya cacheado: el `--refresh` global re-descargaba temporadas enteras y
     fue una de las causas de los baneos. El fixture sí se refresca siempre (1 request
     por temporada): es la forma de descubrir los partidos nuevos.
+
+    `ventana` limita los reportes a un rango de fechas (la ventana FIFA) y
+    `temporadas` fija qué temporadas pedir (por defecto, las que están en curso).
     """
     referencia = hoy or date.today()
     stats = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
@@ -187,16 +216,17 @@ def scrape_incremental(
     if temporada_cerrada(config, referencia):
         return stats
 
-    if config.kind == "selecciones":
+    if config.kind == "selecciones" and getattr(config, "ediciones_irregulares", True):
         # El `saison_id` de las selecciones no sigue una regla fija y, si no existe,
         # TM devuelve la última edición. Se piden varios años y se descarta la
         # respuesta repetida (igual que `scripts/scrape_ediciones.py`).
         return _scrape_selecciones(
             config, client, store, semana_fin=semana_fin,
             hoy=referencia, dry_run=dry_run, limit=limit,
+            ventana=ventana, anios=anios,
         )
 
-    for season in temporadas_en_curso(config, referencia):
+    for season in temporadas if temporadas is not None else temporadas_en_curso(config, referencia):
         url = build_schedule_url(config, season)
         stats["fixtures"] += 1
         if dry_run:
@@ -217,6 +247,12 @@ def scrape_incremental(
             )
             continue
 
+        # Los amistosos mezclan mayores y juveniles: se descartan antes de cachear para
+        # no gastar un reporte por cada partido sub-15 a sub-23.
+        fixtures = _sin_juveniles(config, fixtures)
+        if not fixtures:
+            continue
+
         # El fixture se refresca siempre, sin tocar los reportes cacheados.
         store.write_fixtures(config.code, season, [asdict(f) for f in fixtures])
 
@@ -224,7 +260,7 @@ def scrape_incremental(
         for fixture in fixtures:
             if store.has_match(config.code, season, fixture.match_id):
                 continue
-            if not _fecha_ok(fixture, semana_fin):
+            if not _fecha_ok(fixture, semana_fin, ventana):
                 stats["omitidos_fecha"] += 1
                 continue
             pendientes.append(fixture)
@@ -260,12 +296,21 @@ def _scrape_selecciones(
     hoy: date,
     dry_run: bool = False,
     limit: Optional[int] = None,
+    ventana: Optional[tuple[date, date]] = None,
+    anios: Optional[list[int]] = None,
 ) -> dict[str, int]:
-    """Incremental de una competencia de selecciones (ediciones con `saison_id` irregular)."""
+    """Incremental de una competencia de selecciones (ediciones con `saison_id` irregular).
+
+    `anios` limita los `saison_id` que se prueban (por defecto, los últimos
+    `ANIOS_SELECCIONES`); `ventana` limita los reportes a un rango de fechas.
+    """
     stats = {"fixtures": 0, "reportes": 0, "omitidos_fecha": 0, "errores": 0}
     vistas: set[tuple[int, ...]] = set()
 
-    for saison_id in range(hoy.year - ANIOS_SELECCIONES, hoy.year + 1):
+    saisons = anios if anios is not None else list(
+        range(hoy.year - ANIOS_SELECCIONES, hoy.year + 1)
+    )
+    for saison_id in saisons:
         url = (
             f"https://{settings.transfermarkt_domain}/{config.slug}/gesamtspielplan/"
             f"{config.path}/{config.code}?saison_id={saison_id}"
@@ -299,7 +344,7 @@ def _scrape_selecciones(
         pendientes = [
             f for f in fixtures
             if not store.has_match(config.code, anio, f.match_id)
-            and _fecha_ok(f, semana_fin)
+            and _fecha_ok(f, semana_fin, ventana)
         ]
         if limit is not None:
             pendientes = pendientes[:limit]
@@ -375,6 +420,11 @@ def load_normalized(
         fixture = Fixture(**raw)
         if not store.has_match(config.code, season, fixture.match_id):
             continue
+        if getattr(config, "filtrar_juveniles", False):
+            from selecciones import es_juvenil
+
+            if es_juvenil(fixture.home_club_name) or es_juvenil(fixture.away_club_name):
+                continue
         report = MatchReport(**store.read_match(config.code, season, fixture.match_id))
 
         normalized.append(

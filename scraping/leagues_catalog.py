@@ -94,6 +94,12 @@ CATALOG: tuple[LeagueCandidate, ...] = (
     # Hasta 2026-10-29 la base no tenía selecciones: un DT que dirigía una (Ancelotti
     # en Brasil, Scaloni en Argentina) aparecía como "sin trabajo". Códigos verificados
     # con la búsqueda de TM.
+    # Amistosos: la única competencia donde se ven las fechas FIFA que no tienen torneo
+    # oficial. OJO: mezcla selecciones mayores con sub-15 a sub-23 (mismo código), así que
+    # se filtra por nombre de equipo antes de bajar los reportes (ver
+    # `CompetitionConfig.filtrar_juveniles`).
+    LeagueCandidate("FS", "Amistosos internacionales", "Mundo", "FIFA", "selecciones", 0, 250, "C", 0.60,
+                    note="selecciones mayores y juveniles en el mismo código; la temporada es julio-junio"),
     LeagueCandidate("FIWC", "Copa del Mundo", "Mundo", "FIFA", "selecciones", 1, 64, "S", 1.30,
                     "pokalwettbewerb", note="Mundiales de selecciones (cada 4 años)"),
     LeagueCandidate("COPA", "Copa América", "Conmebol", "CONMEBOL", "selecciones", 0, 26, "A", 1.00,

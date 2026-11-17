@@ -163,12 +163,17 @@ def _texto_del_post(etiqueta: str, contenido: dict) -> str:
 def _cabecera(resumen: dict, orden: list, sugerido: Optional[str]) -> str:
     """Encabezado del paquete: qué semana es y qué trae."""
     etiquetas = {formato["formato"]: formato.get("titulo", formato["formato"]) for formato in orden}
-    lineas = [
-        f"<b>Paquete semanal ELO DT</b> — {resumen.get('semana_iso')}",
-        f"{resumen.get('partidos')} partidos · "
-        f"{resumen.get('snapshot', {}).get('publicables')} DTs publicables",
-        f"{len(orden)} posts · sugerido: <b>{_escapar(str(etiquetas.get(sugerido, sugerido)))}</b>",
-    ]
+    titulo = resumen.get("titulo_paquete") or "Paquete semanal ELO DT"
+    lineas = [f"<b>{titulo}</b> — {resumen.get('semana_iso')}"]
+    # El paquete de fecha FIFA no lleva snapshot semanal: su línea de publicables no aplica.
+    snapshot = resumen.get("snapshot") or {}
+    detalle = f"{resumen.get('partidos')} partidos"
+    if snapshot.get("publicables"):
+        detalle += f" · {snapshot['publicables']} DTs publicables"
+    lineas.append(detalle)
+    lineas.append(
+        f"{len(orden)} posts · sugerido: <b>{_escapar(str(etiquetas.get(sugerido, sugerido)))}</b>"
+    )
     if resumen.get("omitidos"):
         omitidos = ", ".join(o["formato"] for o in resumen["omitidos"])
         lineas.append(f"<i>Sin generar:</i> {_escapar(omitidos)}")

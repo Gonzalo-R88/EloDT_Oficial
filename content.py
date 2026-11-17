@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Collection, Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,6 +37,19 @@ DIAS_REVELACION = 90
 # entre los que bajaron y la columna "cayeron" salía vacía.
 SIN_CORTE = 5000
 ANIOS_REVELACION = 2
+
+# Mínimo de nombres por columna para que "subieron y cayeron" valga la pena: en una fecha
+# FIFA hay un solo partido argentino y el ELO es suma cero, así que sale un +x y un -x.
+MIN_MOVERS = 3
+
+# La revelación sólo se elige entre DTs de ligas que la audiencia reconoce: el ELO no se
+# compara entre ligas, y ordenando por suba bruta ganaban las ligas de más oscilación.
+# `AR1N` queda porque la liga doméstica de un club se mide con los últimos 3 años.
+LIGAS_REVELACION = frozenset({
+    "ARG1", "ARGC", "AR1N", "BRA1",
+    "GB1", "ES1", "IT1", "L1", "FR1", "NL1", "PO1",
+})
+MIN_PJ_REVELACION = 30
 
 
 @dataclass(frozen=True)
@@ -423,12 +436,18 @@ def revelacion(
     semana_fin: Optional[date] = None,
     ruta_cobertura: Optional[Path] = None,
     anios: int = ANIOS_REVELACION,
+    ligas: Optional[Collection[str]] = LIGAS_REVELACION,
+    excluir_dt_ids: Collection[int] = (),
+    min_pj: int = MIN_PJ_REVELACION,
 ) -> Optional[Revelacion]:
     """El DT con menos de `anios` de carrera que más creció en los últimos 90 días.
 
     "Carrera" se mide desde su primer partido en la base. El crecimiento se calcula
     contra el snapshot de hace 90 días; si no hay snapshot, se usa el ELO actual (y la
     variación queda en 0).
+
+    Sólo compiten los DTs de `ligas` (`None` desactiva el filtro), con al menos `min_pj`
+    partidos y que no estén en `excluir_dt_ids` (los que ya salieron hace poco).
     """
     cierre = _cierre(semana_fin)
     desde_carrera = cierre - timedelta(days=365 * anios)
@@ -455,7 +474,11 @@ def revelacion(
         primera_fecha = primeras.get(club.dt_id)
         if primera_fecha is None or primera_fecha < desde_carrera:
             continue
-        if club.pj < 15:
+        if club.pj < min_pj:
+            continue
+        if club.dt_id in excluir_dt_ids:
+            continue
+        if ligas is not None and club.liga not in ligas:
             continue
         elo_previo = hace_90.get(club.dt_id, {}).get("elo")
         variacion = (club.elo or 0.0) - elo_previo if elo_previo is not None else 0.0

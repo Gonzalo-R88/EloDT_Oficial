@@ -33,6 +33,13 @@ class CompetitionConfig:
     # Última temporada que existe en TM (None = sigue vigente). Sirve para que la
     # actualización semanal no pida competencias que ya cerraron (AR1N, CDLP).
     last_season: Optional[int] = None
+    # Descarta los partidos de categorías juveniles por nombre de equipo (sub-15 a
+    # sub-23). Los amistosos (`FS`) mezclan mayores y juveniles bajo el mismo código.
+    filtrar_juveniles: bool = False
+    # Las eliminatorias y los torneos de selecciones no tienen un `saison_id` fijo y
+    # hay que probar varios años (`_scrape_selecciones`). Los amistosos sí siguen la
+    # temporada regular julio-junio.
+    ediciones_irregulares: bool = True
 
 
 # Niveles y coeficientes según el documento maestro v1.
@@ -76,6 +83,14 @@ COMPETITIONS: dict[str, CompetitionConfig] = {
         path="pokalwettbewerb", saison_offset=1,
     ),
 }
+
+
+# Competencias de selecciones que sí siguen la temporada regular de TM (julio-junio);
+# el resto se baja probando varios `saison_id` (`_scrape_selecciones`).
+_TEMPORADA_REGULAR = frozenset({"FS"})
+
+# Competencias donde hay que descartar los partidos de categorías juveniles.
+_FILTRAR_JUVENILES = frozenset({"FS"})
 
 
 def get_competition(code: str) -> CompetitionConfig:
@@ -123,6 +138,8 @@ def _register_catalog() -> None:
             path=candidate.path,
             saison_offset=candidate.saison_offset,
             last_season=candidate.last_season,
+            filtrar_juveniles=candidate.code in _FILTRAR_JUVENILES,
+            ediciones_irregulares=candidate.code not in _TEMPORADA_REGULAR,
         )
 
 

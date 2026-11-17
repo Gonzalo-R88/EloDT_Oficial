@@ -129,8 +129,13 @@ def compute_power_ranking(
     dias: int = DIAS_VENTANA_DEFAULT,
     top: int = 5,
     competencia_id: Optional[int] = None,
+    tipo: Optional[str] = None,
 ) -> PowerRanking:
-    """Calcula las mayores subidas y caídas de ELO en la ventana indicada."""
+    """Calcula las mayores subidas y caídas de ELO en la ventana indicada.
+
+    `tipo` filtra por el tipo de competencia ("selecciones" para las fechas FIFA,
+    "liga" para los torneos domésticos) sin tener que pasar código por código.
+    """
     desde_date, hasta_date = resolve_window(session, desde, hasta, dias)
 
     query = (
@@ -144,6 +149,10 @@ def compute_power_ranking(
     )
     if competencia_id is not None:
         query = query.where(MatchCoach.competencia_id == competencia_id)
+    if tipo is not None:
+        query = query.join(
+            Competition, Competition.competencia_id == MatchCoach.competencia_id
+        ).where(Competition.tipo == tipo)
 
     matches = session.execute(query).scalars().all()
 

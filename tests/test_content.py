@@ -251,3 +251,36 @@ def test_revelacion_elige_a_un_dt_publicable_reciente(db, cobertura):
     assert elegido is not None
     assert elegido.pj >= 15
     assert elegido.desde_primera_fecha >= CIERRE - timedelta(days=365 * 2)
+
+
+def test_revelacion_solo_de_ligas_elegibles(db, cobertura):
+    session, _ = db
+    take_snapshot(session, hasta=CIERRE, ruta_cobertura=cobertura)
+
+    ninguna = revelacion(session, semana_fin=CIERRE, ruta_cobertura=cobertura, ligas={"MLS1"})
+    espanola = revelacion(session, semana_fin=CIERRE, ruta_cobertura=cobertura, ligas={"ES1"})
+
+    assert ninguna is None
+    assert espanola is not None
+    assert espanola.pais == "España"
+
+
+def test_revelacion_no_repite_a_los_excluidos(db, cobertura):
+    session, _ = db
+    take_snapshot(session, hasta=CIERRE, ruta_cobertura=cobertura)
+
+    primero = revelacion(session, semana_fin=CIERRE, ruta_cobertura=cobertura)
+    segundo = revelacion(
+        session, semana_fin=CIERRE, ruta_cobertura=cobertura,
+        excluir_dt_ids={primero.dt_id},
+    )
+
+    assert segundo is not None
+    assert segundo.dt_id != primero.dt_id
+
+
+def test_revelacion_pide_un_minimo_de_partidos(db, cobertura):
+    session, _ = db
+    take_snapshot(session, hasta=CIERRE, ruta_cobertura=cobertura)
+
+    assert revelacion(session, semana_fin=CIERRE, ruta_cobertura=cobertura, min_pj=500) is None

@@ -33,6 +33,7 @@ class _Entrada:
 class _Movimiento:
     dt: str
     delta: float
+    club: str = ""
 
 
 @dataclass(frozen=True)
@@ -195,3 +196,27 @@ def test_movimientos_describe_quien_subio_y_quien_bajo():
 
     assert "Subió más: Federico Medina (+14,2)" in textos.texto
     assert "Bajó más: Marcelo Gallardo (-11,8)" in textos.texto
+
+
+def test_los_textos_no_anuncian_el_dia_de_publicacion():
+    for formato, textos in _textos_de_ejemplo().items():
+        assert "lunes" not in textos.texto.lower(), formato
+    assert "actualizado cada semana" in _textos_de_ejemplo()["top10"].texto
+
+
+def test_el_texto_de_selecciones_entra_en_x_y_no_anuncia_el_dia():
+    from captions import textos_movimientos_selecciones
+
+    subida = _Movimiento("Brian Riemer", 26.2, club="Denmark")
+    bajada = _Movimiento("Jorge Jesus", -26.2, club="Portugal")
+
+    textos = textos_movimientos_selecciones(
+        [subida], [bajada], "del 12 al 17 de noviembre de 2026", partidos=58
+    )
+
+    assert len(textos.texto) <= 280
+    assert "lunes" not in textos.texto.lower()
+    assert "selecciones" in textos.texto.lower()
+    assert "Denmark" in textos.texto and "Portugal" in textos.texto
+    assert "+26,2" in textos.texto and "-26,2" in textos.texto
+    assert textos.alt.strip()

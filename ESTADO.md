@@ -11,6 +11,30 @@
 > sin los partidos de ese día y el lunes se saltearía por estar "hecha"). Con fecha explícita
 > el domingo se respeta, así `--semana-fin` no cambia de sentido.
 >
+> **Fecha FIFA (2026-11-17):** cuando hay una pausa de selecciones, el paquete de clubes
+> queda flojo (en W46 salía un +9,7 y un −9,7 por un solo partido de Copa Argentina), así
+> que ahora se publica **un paquete aparte** con los 5 seleccionadores que más subieron y
+> bajaron. `selecciones.py` detecta la ventana sola (días con 6+ partidos de selecciones
+> mayores, huecos de hasta 2 días), y `weekly_run.py selecciones` baja amistosos (`FS`, con
+> filtro de juveniles) y torneos oficiales, carga, recalcula y publica en
+> `data/output/fifa-<hasta>/`. Reglas: publica 2 días después del último partido
+> (`DIAS_GRACIA_FIFA`) y **una sola vez** por ventana (marcador `summary.json`).
+> `all --selecciones` (lo que llama `entrada_windows.sh`) corre las dos cosas. **No hay
+> mínimo de partidos**: medido sobre selecciones desde 2022, el debut mueve el ELO lo mismo
+> que cualquier partido (6,5 vs 6,6 de media); a quien tiene menos de 5 partidos se lo
+> etiqueta "debutante". **Pendiente:** backfill de amistosos 2015-2025 + `recompute` (los
+> niveles de los seleccionadores quedan incompletos hasta entonces) y revisar los
+> walkovers (Nueva Zelanda-India aparece como resultado normal).
+>
+> **Contenido semanal (2026-11-17):** los textos ya no anuncian el día ("actualizado cada
+> semana", `captions.CIERRE`). **Subieron y cayeron** se omite si hay menos de 3 subidas o 3
+> bajadas (`content.MIN_MOVERS`; en fecha FIFA quedaba un +x y un -x) y el sugerido salta al
+> siguiente formato disponible. **DT revelación** sólo entre `content.LIGAS_REVELACION`
+> (ARG1/ARGC/AR1N, BRA1, GB1, ES1, IT1, L1, FR1, NL1, PO1), con 30+ partidos y sin repetir a
+> quien salió en las últimas 8 semanas (`summary.json` guarda `elegidos`). **Pendiente
+> (optativo):** en fecha FIFA publicar un formato de selecciones; el **Duelo** también sale
+> flojo esas semanas (W46: Mirassol vs Mineiro, 2275 de ELO combinado).
+>
 > **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
 > leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque
 > monoespaciado para copiar. **Un solo texto por pieza** (≤280, sirve para X y LinkedIn),

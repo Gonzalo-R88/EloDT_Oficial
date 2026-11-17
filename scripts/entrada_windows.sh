@@ -14,6 +14,14 @@ if [ "$#" -eq 0 ]; then
     exit 2
 fi
 
+# En la corrida completa también se publica la fecha FIFA si hay una ventana cerrada
+# pendiente. El comando decide solo: fuera de una fecha FIFA sale en segundos sin tocar
+# la red (`weekly_run.publicar_selecciones`).
+if [ "${1:-}" = "all" ]; then
+    shift
+    set -- all --selecciones "$@"
+fi
+
 # `winhost` (el Postgres de Windows) vive en /etc/hosts, pero WSL regenera ese archivo
 # cada vez que arranca la VM y se pierde la línea. El `update_winhost` de ~/.bashrc lo
 # arregla sólo en terminales interactivas, y estas corridas no lo son: sin esto, la
