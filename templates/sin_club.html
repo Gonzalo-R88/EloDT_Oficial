@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .cabecera {
+      padding: 2.6vh 7vw 1.8vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2vh;
+    }
+    .cabecera .titulo { font-size: 5.4vh; color: var(--texto); }
+    .cabecera .subtitulo {
+      font-size: 1.9vh;
+      color: var(--violeta);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .cabecera .linea {
+      width: 12vw;
+      height: 0.4vh;
+      background: var(--violeta);
+      border-radius: 1vh;
+    }
+
+    .filas {
+      flex: 1;
+      padding: 1.2vh 6vw 2vh;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-auto-rows: 1fr;
+      gap: 1.2vh;
+      min-height: 0;
+    }
+    .fila {
+      display: flex;
+      align-items: center;
+      gap: 2.4vw;
+      padding: 0 2.4vw;
+      background: var(--panel);
+      border: 1px solid var(--borde);
+      border-radius: 1.6vh;
+      min-width: 0;
+    }
+    .fila .puesto {
+      font-family: "Anton", sans-serif;
+      font-size: 2.2vh;
+      color: var(--blanco);
+      background: var(--violeta);
+      width: 5.4vh;
+      height: 5.4vh;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    .fila .datos { flex: 1; min-width: 0; }
+    .fila .dt {
+      font-size: 2.5vh;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fila .partidos {
+      font-size: 1.8vh;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fila .elo {
+      font-family: "Anton", sans-serif;
+      font-size: 3.2vh;
+      color: var(--celeste);
+      flex: 0 0 auto;
+      min-width: 9vw;
+      text-align: right;
+    }
+
+    .pie {
+      padding: 1.2vh 7vw 2.2vh;
+      font-size: 1.7vh;
+    }
+
+    /* Apaisado: dos columnas de cinco para que las filas respiren. */
+    body.variante-landscape .filas {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(5, 1fr);
+      grid-auto-flow: column;
+      gap: 1.4vh 2.4vw;
+    }
+    body.variante-landscape .cabecera .titulo { font-size: 7.2vh; }
+    body.variante-landscape .fila .elo { min-width: 4vw; }
+  </style>
+</head>
+<body class="variante-{{ variante.nombre }}">
+  <div class="lienzo">
+    <div class="barra-marca"></div>
+
+    <div class="cabecera">
+      <div class="titulo">{{ titulo }}</div>
+      <div class="linea"></div>
+      <div class="subtitulo">{{ subtitulo }}</div>
+    </div>
+
+    <div class="filas">
+      {% for e in entradas %}
+      <div class="fila">
+        <div class="puesto">{{ e.puesto }}</div>
+        <div class="datos">
+          <div class="dt">{{ e.dt }}</div>
+          <div class="partidos">{{ e.pj }} partidos{% if e.etiqueta %} · {{ e.etiqueta }}{% endif %}</div>
+        </div>
+        <div class="elo">{{ e.elo | round | int }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="pie">
+      <span>ELO propio</span>
+      <span>{{ handle }}</span>
+    </div>
+  </div>
+</body>
+</html>

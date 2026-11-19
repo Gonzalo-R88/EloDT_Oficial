@@ -220,3 +220,24 @@ def test_el_texto_de_selecciones_entra_en_x_y_no_anuncia_el_dia():
     assert "Denmark" in textos.texto and "Portugal" in textos.texto
     assert "+26,2" in textos.texto and "-26,2" in textos.texto
     assert textos.alt.strip()
+
+
+def test_el_texto_de_sin_club_entra_en_x_y_no_nombra_al_club():
+    from captions import textos_sin_club
+
+    entradas = [
+        SimpleNamespace(dt="Claudio Úbeda", elo=1135.0, puesto=1),
+        SimpleNamespace(dt="Gustavo Quinteros", elo=1135.0, puesto=2),
+        SimpleNamespace(dt="Carlos Tévez", elo=1098.0, puesto=3),
+    ]
+
+    textos = textos_sin_club(entradas, "19 de noviembre de 2026", pais="Argentina")
+
+    assert len(textos.texto) <= LIMITE_POST
+    assert "Úbeda" in textos.texto
+    assert "Quinteros" in textos.texto
+    assert "sin club" in textos.texto.lower()
+    # El último club no aporta y no se publica.
+    assert "Boca" not in textos.texto
+    assert "sin club" in textos.alt.lower()
+    assert textos.alt.strip()

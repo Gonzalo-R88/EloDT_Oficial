@@ -70,6 +70,9 @@ class Elegibilidad:
     # club, así que sólo entra quien hoy está en un banco.
     es_vigente: bool = False
     club_actual: Optional[int] = None
+    # Último club en el que dirigió. Para un DT libre `club_actual` es None, pero este
+    # campo queda: es lo que permite filtrar el ranking de "sin club" por país.
+    ultimo_club_id: Optional[int] = None
     # Dirigió en el último año pero hoy no es el DT de ningún club: candidato al
     # ranking de "técnicos sin trabajo".
     sin_trabajo: bool = False
@@ -322,6 +325,7 @@ def estado_publicacion(
             "cobertura": cobertura,
             "es_vigente": es_vigente,
             "club_actual": club_del_dt.get(dt_id),
+            "ultimo_club_id": club_id,
         }
 
         if pj_total < settings.interino_min_pj:

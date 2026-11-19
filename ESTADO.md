@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-11-10.
+Última actualización: 2026-11-19.
 
 > **Marca (2026-11-10):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
 > Logo: `assets/brand/perfil.png` (generado con `scripts/logo.py`) y
@@ -34,6 +34,15 @@
 > quien salió en las últimas 8 semanas (`summary.json` guarda `elegidos`). **Pendiente
 > (optativo):** en fecha FIFA publicar un formato de selecciones; el **Duelo** también sale
 > flojo esas semanas (W46: Mirassol vs Mineiro, 2275 de ELO combinado).
+>
+> **Técnicos sin club (2026-11-19):** ranking bajo demanda de DTs libres cuyo último
+> club fue argentino. `python3 scripts/weekly_run.py sin_club [--sin-envio]` genera
+> `data/output/sin-club-<fecha>/` con la imagen (3 variantes), el texto para X y el alt.
+> No toca la red: lee la base como está. Quedan afuera los que no dirigieron en los
+> últimos 365 días (`--dias`), así que no aparecen técnicos con más de un año sin
+> dirigir. El último club no se muestra: la segunda línea dice los partidos dirigidos.
+> El ELO es el acumulado de la base (desde 2000), no un rendimiento de los últimos dos
+> años.
 >
 > **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
 > leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque

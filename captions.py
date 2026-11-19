@@ -17,6 +17,8 @@ LIMITE_POST = 280
 CIERRE = "Ranking ELO propio, actualizado cada semana."
 # Las ventanas FIFA no cierran con la semana: el cierre no puede decir "cada semana".
 CIERRE_SELECCIONES = "Ranking ELO propio de los seleccionadores."
+# El ranking de técnicos libres no sigue la semana: se arma cuando hace falta.
+CIERRE_SIN_CLUB = "Ranking ELO propio de técnicos libres."
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,42 @@ def textos_top10(
         )
     else:
         alt = f"{titulo}: {semana_texto}."
+
+    return Textos(texto=texto, alt=alt)
+
+
+def textos_sin_club(
+    entradas: Sequence,
+    fecha_texto: str,
+    titulo: Optional[str] = None,
+    pais: Optional[str] = "Argentina",
+) -> Textos:
+    """Texto del ranking de técnicos sin club (imagen y X).
+
+    No nombra el último club: lo que importa es quién está libre y cuánto ELO tiene.
+    """
+    if not entradas:
+        raise ValueError("No hay entradas para generar los textos.")
+
+    titulo = titulo or (
+        f"Mejores DTs sin club de {pais}" if pais else "Mejores DTs sin club"
+    )
+    lider = entradas[0]
+
+    texto = _recortar(
+        f"🧑‍🏫 {titulo} · {fecha_texto}\n"
+        f"{_podio(entradas)}\n"
+        f"{CIERRE_SIN_CLUB} ¿A quién contratarías?"
+    )
+
+    if len(entradas) >= 3:
+        alt = (
+            f"{titulo}: {fecha_texto}. Primero {_nombre(lider)} con {_elo(lider)} "
+            f"puntos de ELO, segundo {_nombre(entradas[1])} y tercero "
+            f"{_nombre(entradas[2])}."
+        )
+    else:
+        alt = f"{titulo}: {fecha_texto}."
 
     return Textos(texto=texto, alt=alt)
 

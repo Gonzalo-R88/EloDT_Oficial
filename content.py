@@ -18,10 +18,13 @@ from typing import Collection, Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from config import settings
 from duel import Duel, compute_duel
-from models import Club, MatchCoach
+from models import Club, Coach, MatchCoach
 from publicacion import (
     ETIQUETA_INTERINO,
+    ETIQUETA_PROVISORIO,
+    Elegibilidad,
     dt_actual_por_club,
     estado_publicacion,
     ranking_por_club,
@@ -133,6 +136,23 @@ class Revelacion:
     etiqueta: Optional[str]
 
 
+@dataclass(frozen=True)
+class EntradaSinClub:
+    """Un técnico libre (sin club) listo para el ranking.
+
+    No lleva el último club: se usa sólo para filtrar por país. En la imagen van el
+    nombre y los partidos dirigidos.
+    """
+
+    dt_id: int
+    dt: str
+    elo: float
+    pj: int
+    ultima_fecha: Optional[date]
+    etiqueta: Optional[str]
+    puesto: int
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -227,6 +247,72 @@ def top_por_pais(
     return top_n(
         session, semana_fin=semana_fin, n=n, pais=pais, ruta_cobertura=ruta_cobertura
     )
+
+
+# ---------------------------------------------------------------------------
+# Técnicos sin club
+# ---------------------------------------------------------------------------
+def top_sin_club(
+    session: Session,
+    hasta: Optional[date] = None,
+    pais: Optional[str] = "Argentina",
+    n: int = 10,
+    dias: int = settings.activo_dias,
+    excluir_dt_ids: Collection[int] = (),
+    ruta_cobertura: Optional[Path] = None,
+) -> list[EntradaSinClub]:
+    """Los mejores técnicos libres cuyo último club fue de `pais`.
+
+    "Libre" es la regla de `publicacion.py`: dirigió en los últimos `dias` días y hoy
+    no es el DT de ningún club. Sólo entran los que tienen `pj_total >= RANKING_MIN_PJ`
+    (entre 15 y 29 llevan la etiqueta "provisorio"). El último club se usa para filtrar
+    por país y no se devuelve: no se muestra en la imagen.
+    """
+    referencia = hasta or date.today()
+    estados = estado_publicacion(session, hasta=referencia, ruta_cobertura=ruta_cobertura)
+    paises = {
+        club_id: pais_club
+        for club_id, pais_club in session.execute(select(Club.club_id, Club.pais))
+    }
+    entrenadores = {
+        coach.dt_id: coach for coach in session.execute(select(Coach)).scalars()
+    }
+
+    candidatos: list[tuple[float, Coach, Elegibilidad]] = []
+    for dt_id, estado in estados.items():
+        if not estado.sin_trabajo or dt_id in excluir_dt_ids:
+            continue
+        if estado.pj_total < settings.ranking_min_pj or estado.ultima_fecha is None:
+            continue
+        if (referencia - estado.ultima_fecha).days > dias:
+            continue
+        if pais and paises.get(estado.ultimo_club_id) != pais:
+            continue
+        coach = entrenadores.get(dt_id)
+        if coach is None:
+            continue
+        candidatos.append((float(coach.elo_actual), coach, estado))
+
+    candidatos.sort(key=lambda fila: (-fila[0], f"{fila[1].nombre} {fila[1].apellido}"))
+
+    entradas: list[EntradaSinClub] = []
+    for puesto, (elo, coach, estado) in enumerate(candidatos[:n], start=1):
+        entradas.append(
+            EntradaSinClub(
+                dt_id=coach.dt_id,
+                dt=f"{coach.nombre} {coach.apellido}".strip(),
+                elo=elo,
+                pj=estado.pj_total,
+                ultima_fecha=estado.ultima_fecha,
+                etiqueta=(
+                    ETIQUETA_PROVISORIO
+                    if estado.pj_total < settings.provisorio_pj
+                    else None
+                ),
+                puesto=puesto,
+            )
+        )
+    return entradas
 
 
 # ---------------------------------------------------------------------------

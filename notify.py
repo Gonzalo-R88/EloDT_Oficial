@@ -167,7 +167,8 @@ def _cabecera(resumen: dict, orden: list, sugerido: Optional[str]) -> str:
     lineas = [f"<b>{titulo}</b> — {resumen.get('semana_iso')}"]
     # El paquete de fecha FIFA no lleva snapshot semanal: su línea de publicables no aplica.
     snapshot = resumen.get("snapshot") or {}
-    detalle = f"{resumen.get('partidos')} partidos"
+    # El paquete semanal trae "partidos"; los de fecha FIFA y sin club traen "detalle".
+    detalle = resumen.get("detalle") or f"{resumen.get('partidos')} partidos"
     if snapshot.get("publicables"):
         detalle += f" · {snapshot['publicables']} DTs publicables"
     lineas.append(detalle)

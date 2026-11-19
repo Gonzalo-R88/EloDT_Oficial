@@ -41,6 +41,7 @@ from captions import (  # noqa: E402
     textos_movimientos,
     textos_movimientos_selecciones,
     textos_revelacion,
+    textos_sin_club,
     textos_top10,
 )
 from config import settings  # noqa: E402
@@ -53,6 +54,7 @@ from content import (  # noqa: E402
     revelacion,
     serie_elo,
     top_n,
+    top_sin_club,
 )
 from db import create_session  # noqa: E402
 from elo import MODELO_VERSION  # noqa: E402
@@ -96,6 +98,11 @@ def texto_semana(desde: date, hasta: date) -> str:
         f"{desde.day} de {MESES[desde.month - 1]} al {hasta.day} de "
         f"{MESES[hasta.month - 1]} de {hasta.year}"
     )
+
+
+def texto_fecha(dia: date) -> str:
+    """Una sola fecha en texto: '19 de noviembre de 2026'."""
+    return f"{dia.day} de {MESES[dia.month - 1]} de {dia.year}"
 
 
 def _formato_sugerido(cierre: date, disponibles: Optional[Sequence[str]] = None) -> Optional[str]:
@@ -411,8 +418,10 @@ def _escribir_paquete(
         json.dumps(resumen, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    lineas = [f"# Paquete semanal — {semana_texto}", ""]
-    lineas.append(f"Modelo `{resumen['modelo']}` · {resumen['partidos']} partidos en la ventana.")
+    titulo = resumen.get("titulo_paquete") or "Paquete semanal"
+    lineas = [f"# {titulo} — {semana_texto}", ""]
+    detalle = resumen.get("detalle") or f"{resumen.get('partidos', 0)} partidos en la ventana"
+    lineas.append(f"Modelo `{resumen['modelo']}` · {detalle}.")
     lineas.append("")
     titulos = {f["formato"]: f.get("titulo", f["formato"]) for f in resumen["generados"]}
     if sugerido and sugerido in textos:
@@ -707,6 +716,83 @@ def publicar_selecciones(
         return (0 if envio.get("ok") or not notificar else 30), resumen
     except Exception as error:  # noqa: BLE001
         return 30, {"error": str(error)}
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Técnicos sin club (bajo demanda)
+# ---------------------------------------------------------------------------
+def render_sin_club(
+    pais: str = "Argentina",
+    n: int = 10,
+    hasta: Optional[date] = None,
+    dias: int = 365,
+    excluir: Sequence[int] = (),
+    out_dir: Optional[Path] = None,
+    variantes: tuple[str, ...] = VARIANTES,
+) -> dict:
+    """Genera el paquete de "técnicos sin club" sin tocar la red.
+
+    Lee la base como está: el `update` semanal ya la mantiene al día. El último club
+    se usa sólo para filtrar por país; en la imagen van el nombre y los partidos.
+    """
+    session = create_session()
+    try:
+        referencia = hasta or date.today()
+        entradas = top_sin_club(
+            session,
+            hasta=referencia,
+            pais=pais,
+            n=n,
+            dias=dias,
+            excluir_dt_ids=excluir,
+        )
+        fecha_texto = texto_fecha(referencia)
+        destino = Path(
+            out_dir or settings.data_dir / "output" / f"sin-club-{referencia.isoformat()}"
+        )
+        destino.mkdir(parents=True, exist_ok=True)
+
+        omitidos: list[dict] = []
+        archivos: list[str] = []
+        textos: dict = {}
+        if len(entradas) < min(3, n):
+            omitidos.append({
+                "formato": "sin_club",
+                "motivo": f"sólo hay {len(entradas)} técnicos libres con último club en {pais}",
+            })
+        else:
+            contexto = {
+                "titulo": "LOS MEJORES DTs SIN CLUB",
+                "subtitulo": f"Técnicos libres · {pais} · {fecha_texto}",
+                "entradas": entradas,
+                "handle": HANDLE,
+            }
+            archivos = _renderizar_variantes(
+                "sin_club.html", contexto, destino, "sin_club", variantes, omitidos
+            )
+            if archivos:
+                textos["sin_club"] = textos_sin_club(entradas, fecha_texto, pais=pais)
+
+        resumen = {
+            "titulo_paquete": "Técnicos sin club",
+            "semana_iso": fecha_texto,
+            "detalle": f"{len(entradas)} técnicos libres · último club en {pais}",
+            "modelo": MODELO_VERSION,
+            "pais": pais,
+            "dias": dias,
+            "generados": (
+                [{"formato": "sin_club", "titulo": "Técnicos sin club",
+                  "archivos": archivos}] if archivos else []
+            ),
+            "textos": {clave: {"texto": t.texto, "alt": t.alt} for clave, t in textos.items()},
+            "omitidos": omitidos,
+            "sugerido": "sin_club" if textos else None,
+            "carpeta": str(destino),
+        }
+        _escribir_paquete(destino, resumen, textos, resumen["sugerido"], fecha_texto)
+        return resumen
     finally:
         session.close()
 
@@ -1095,6 +1181,25 @@ def main(argv: list[str] | None = None) -> int:
                                     default=int(os.getenv("TM_UPDATE_MAX_MINUTOS", "150")))
     selecciones_parser.add_argument("--json", action="store_true")
 
+    sin_club_parser = sub.add_parser(
+        "sin_club",
+        help="Ranking de técnicos sin club (bajo demanda, sin tocar la red).",
+    )
+    sin_club_parser.add_argument("--pais", default="Argentina",
+                                 help="País del último club (default: Argentina).")
+    sin_club_parser.add_argument("--top", type=int, default=10)
+    sin_club_parser.add_argument("--hasta", type=date.fromisoformat, default=None,
+                                 help="Fecha de referencia (default: hoy).")
+    sin_club_parser.add_argument("--dias", type=int, default=365,
+                                 help="Recorta la ventana de actividad (365 por defecto; no la "
+                                      "amplía más allá de un año).")
+    sin_club_parser.add_argument("--excluir", default="",
+                                 help="dt_id separados por coma para dejar afuera.")
+    sin_club_parser.add_argument("--salida", type=Path, default=None)
+    sin_club_parser.add_argument("--sin-envio", action="store_true",
+                                 help="Genera el paquete pero no lo manda por Telegram.")
+    sin_club_parser.add_argument("--json", action="store_true")
+
     preflight_parser = sub.add_parser("preflight", help="Verifica base y Transfermarkt.")
     preflight_parser.add_argument("--json", action="store_true")
 
@@ -1184,6 +1289,49 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"error (código {codigo}): {resumen.get('error')}")
         return codigo
+
+    if args.comando == "sin_club":
+        excluir = [int(valor) for valor in args.excluir.split(",") if valor.strip()]
+        try:
+            resumen = render_sin_club(
+                pais=args.pais,
+                n=args.top,
+                hasta=args.hasta,
+                dias=args.dias,
+                excluir=excluir,
+                out_dir=args.salida,
+            )
+        except Exception as error:  # noqa: BLE001
+            print(json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False))
+            return 30
+
+        envio = {"ok": True, "omitido": True}
+        if resumen["generados"] and not args.sin_envio:
+            try:
+                import notify as _notify
+
+                envio = _notify.enviar_paquete(resumen["carpeta"])
+            except Exception as error:  # noqa: BLE001 - el paquete ya está generado
+                envio = {"ok": False, "error": str(error)}
+
+        if args.json:
+            telegram = None if envio.get("omitido") else envio.get("ok")
+            print(json.dumps({"ok": True, **resumen, "telegram": telegram},
+                             ensure_ascii=False))
+        else:
+            if resumen["generados"]:
+                print(f"técnicos sin club · {resumen['semana_iso']} · "
+                      f"{resumen['detalle']}")
+                for formato in resumen["generados"]:
+                    print(f"  ✓ {formato['formato']}: {', '.join(formato['archivos'])}")
+                print(f"  carpeta: {resumen['carpeta']}")
+                if not args.sin_envio:
+                    print("  telegram: enviado" if envio.get("ok")
+                          else f"  telegram: no se pudo enviar ({envio.get('error')})")
+            else:
+                for omitido in resumen["omitidos"]:
+                    print(f"nada que generar: {omitido['motivo']}")
+        return 0 if envio.get("ok") or args.sin_envio or not resumen["generados"] else 30
 
     if args.comando == "all":
         codigo, resumen_update = update(

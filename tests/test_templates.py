@@ -118,7 +118,7 @@ def test_sin_variacion_no_dibuja_flecha():
 # ---------------------------------------------------------------------------
 # Lo que no debe aparecer nunca en una imagen publicada
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("plantilla", ["top10.html", "movers.html", "duelo.html", "revelacion.html"])
+@pytest.mark.parametrize("plantilla", ["top10.html", "movers.html", "duelo.html", "revelacion.html", "sin_club.html"])
 def test_las_plantillas_no_nombran_la_fuente_ni_el_handle_viejo(plantilla):
     html = (TEMPLATES_DIR / plantilla).read_text(encoding="utf-8")
 
@@ -266,3 +266,52 @@ def test_revelacion_renderiza(tmp_path, nombre):
     render_png("revelacion.html", _contexto_revelacion(), salida, nombre)
 
     assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
+
+
+# ---------------------------------------------------------------------------
+# Técnicos sin club
+# ---------------------------------------------------------------------------
+def _entradas_sin_club(cantidad: int = 10) -> list:
+    from content import EntradaSinClub
+
+    return [
+        EntradaSinClub(
+            dt_id=puesto,
+            dt=f"DT de Prueba {puesto}",
+            elo=1200.0 - puesto,
+            pj=40 + puesto,
+            ultima_fecha=date(2026, 10, 1),
+            etiqueta="provisorio" if puesto == 10 else None,
+            puesto=puesto,
+        )
+        for puesto in range(1, cantidad + 1)
+    ]
+
+
+def _contexto_sin_club():
+    return {
+        "titulo": "LOS MEJORES DTs SIN CLUB",
+        "subtitulo": "Técnicos libres · Argentina · 19 de noviembre de 2026",
+        "entradas": _entradas_sin_club(),
+        "handle": "@EloDT_oficial",
+    }
+
+
+def test_sin_club_muestra_partidos_y_provisorio():
+    html = renderizar_html("sin_club.html", _contexto_sin_club(), "portrait")
+
+    assert "LOS MEJORES DTs SIN CLUB" in html
+    assert "41 partidos" in html
+    assert "provisorio" in html
+    assert "{{" not in html
+
+
+@pytest.mark.parametrize("nombre", ["portrait", "landscape", "square"])
+def test_sin_club_renderiza_las_tres_variantes(tmp_path, nombre):
+    _saltar_si_no_hay_navegador()
+
+    salida = tmp_path / f"sin_club_{nombre}.png"
+    render_png("sin_club.html", _contexto_sin_club(), salida, nombre)
+
+    assert dimensiones(salida) == (VARIANTES[nombre].ancho, VARIANTES[nombre].alto)
+    assert tamano_bytes(salida) < 1_500_000
