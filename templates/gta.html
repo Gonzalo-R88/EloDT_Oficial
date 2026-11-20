@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .cabecera {
+      padding: 2.6vh 7vw 1.4vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2vh;
+    }
+    .cabecera .titulo { font-size: 5.4vh; color: var(--texto); }
+    .cabecera .subtitulo {
+      font-size: 1.9vh;
+      color: var(--violeta);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .cabecera .linea {
+      width: 12vw;
+      height: 0.4vh;
+      background: var(--violeta);
+      border-radius: 1vh;
+    }
+
+    .tabla {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2vh;
+      padding: 0.8vh 6vw 1vh;
+      min-height: 0;
+      --columnas: 19% 1fr 6% 1fr;
+    }
+
+    .encabezado {
+      display: grid;
+      grid-template-columns: var(--columnas);
+      align-items: end;
+      padding: 0 2.4vw;
+    }
+    .epoca {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8vh;
+    }
+    .epoca img { height: 13vh; width: auto; display: block; }
+    .epoca .fecha {
+      font-size: 1.9vh;
+      font-weight: 600;
+      color: var(--violeta);
+      letter-spacing: 0.04em;
+    }
+
+    .filas {
+      flex: 1;
+      display: grid;
+      grid-auto-rows: 1fr;
+      gap: 1.2vh;
+      min-height: 0;
+    }
+    .fila {
+      display: grid;
+      grid-template-columns: var(--columnas);
+      align-items: center;
+      padding: 0 2.4vw;
+      background: var(--panel);
+      border: 1px solid var(--borde);
+      border-radius: 1.6vh;
+      min-width: 0;
+    }
+    .fila .club {
+      font-family: "Anton", sans-serif;
+      font-size: 2.4vh;
+      color: var(--violeta);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .fila .dt {
+      font-size: 2.4vh;
+      font-weight: 700;
+      line-height: 1.15;
+      text-align: center;
+      padding: 0 1vw;
+      min-width: 0;
+    }
+    .fila .dt.antes { color: var(--muted); font-weight: 600; }
+    .fila .dt.hoy { color: var(--texto); }
+    .fila .flecha {
+      font-size: 2.6vh;
+      font-weight: 700;
+      color: var(--celeste);
+      text-align: center;
+    }
+
+    .pie {
+      justify-content: flex-end;
+      padding: 1vh 7vw 2.2vh;
+      font-size: 1.7vh;
+    }
+
+    /* Retrato: la columna del club necesita lugar para "INDEPENDIENTE" y los nombres
+       largos tienen que entrar en una línea. */
+    body.variante-portrait .tabla { --columnas: 20% 1fr 4% 1fr; }
+    body.variante-portrait .fila .club { font-size: 2.1vh; }
+    body.variante-portrait .fila .dt { font-size: 2vh; padding: 0 0.4vw; }
+
+    body.variante-landscape .cabecera { padding-top: 2vh; padding-bottom: 0.6vh; gap: 1vh; }
+    body.variante-landscape .cabecera .titulo { font-size: 6.4vh; }
+    body.variante-landscape .epoca img { height: 15vh; }
+    body.variante-landscape .fila .club,
+    body.variante-landscape .fila .dt { font-size: 3vh; }
+    body.variante-landscape .fila .flecha { font-size: 3.2vh; }
+    body.variante-landscape .epoca .fecha { font-size: 2.2vh; }
+
+    body.variante-square .epoca img { height: 11vh; }
+    body.variante-square .fila .club,
+    body.variante-square .fila .dt { font-size: 2.3vh; }
+  </style>
+</head>
+<body class="variante-{{ variante.nombre }}">
+  <div class="lienzo">
+    <div class="barra-marca"></div>
+
+    <div class="cabecera">
+      <div class="titulo">{{ titulo }}</div>
+      <div class="linea"></div>
+      <div class="subtitulo">{{ subtitulo }}</div>
+    </div>
+
+    <div class="tabla">
+      <div class="encabezado">
+        <div class="col-club"></div>
+        <div class="epoca">
+          <img src="../assets/gta/gta5.png" alt="GTA V">
+          <div class="fecha">{{ fecha_a }}</div>
+        </div>
+        <div class="col-flecha"></div>
+        <div class="epoca">
+          <img src="../assets/gta/gta6.png" alt="GTA VI">
+          <div class="fecha">{{ fecha_b }}</div>
+        </div>
+      </div>
+
+      <div class="filas">
+        {% for f in filas %}
+        <div class="fila">
+          <div class="club">{{ f.club }}</div>
+          <div class="dt antes">{{ f.dt_2013 }}</div>
+          <div class="flecha">→</div>
+          <div class="dt hoy">{{ f.dt_hoy }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="pie">
+      <span>{{ handle }}</span>
+    </div>
+  </div>
+</body>
+</html>

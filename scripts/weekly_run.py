@@ -40,12 +40,15 @@ from captions import (  # noqa: E402
     textos_duelo,
     textos_movimientos,
     textos_movimientos_selecciones,
+    textos_gta,
     textos_revelacion,
     textos_sin_club,
     textos_top10,
 )
 from config import settings  # noqa: E402
 from content import (  # noqa: E402
+    GTA5_FECHA,
+    GTA6_FECHA,
     MIN_MOVERS,
     MIN_PJ_REVELACION,
     duelo_de_la_semana,
@@ -53,6 +56,7 @@ from content import (  # noqa: E402
     polilinea,
     revelacion,
     serie_elo,
+    tecnicos_grandes,
     top_n,
     top_sin_club,
 )
@@ -798,6 +802,71 @@ def render_sin_club(
 
 
 # ---------------------------------------------------------------------------
+# Los 5 grandes entre GTA V y GTA VI (bajo demanda)
+# ---------------------------------------------------------------------------
+def texto_fecha_corta(dia: date) -> str:
+    """'17/09/2013'."""
+    return dia.strftime("%d/%m/%Y")
+
+
+def render_gta(
+    out_dir: Optional[Path] = None,
+    variantes: tuple[str, ...] = VARIANTES,
+) -> dict:
+    """Genera el paquete de los cinco grandes con su técnico en GTA V y en GTA VI.
+
+    No toca la red. El técnico de 2013 sale de una tabla fija (la base no tiene la liga
+    argentina de esa época) y el de hoy, del último partido de cada club.
+    """
+    session = create_session()
+    try:
+        filas = tecnicos_grandes(session)
+        fecha_a = texto_fecha_corta(GTA5_FECHA)
+        fecha_b = texto_fecha_corta(GTA6_FECHA)
+        destino = Path(out_dir or settings.data_dir / "output" / f"gta-{GTA6_FECHA.isoformat()}")
+        destino.mkdir(parents=True, exist_ok=True)
+
+        contexto = {
+            "titulo": "LOS 5 GRANDES Y SUS DTs",
+            "subtitulo": "Cuando salió cada GTA",
+            "filas": filas,
+            "fecha_a": fecha_a,
+            "fecha_b": fecha_b,
+            "handle": HANDLE,
+        }
+        omitidos: list[dict] = []
+        archivos = _renderizar_variantes("gta.html", contexto, destino, "gta", variantes, omitidos)
+
+        textos = {}
+        if archivos:
+            textos["gta"] = textos_gta(filas, fecha_a, fecha_b)
+
+        resumen = {
+            "titulo_paquete": "Los 5 grandes · GTA V y GTA VI",
+            "semana_iso": f"{fecha_a} y {fecha_b}",
+            "detalle": f"{len(filas)} clubes",
+            "modelo": MODELO_VERSION,
+            "generados": (
+                [{"formato": "gta", "titulo": "Los 5 grandes · GTA",
+                  "archivos": archivos}] if archivos else []
+            ),
+            "textos": {clave: {"texto": t.texto, "alt": t.alt} for clave, t in textos.items()},
+            "omitidos": omitidos,
+            "sugerido": "gta" if textos else None,
+            "tecnicos_hoy": [
+                {"club": f.club, "dt": f.dt_hoy,
+                 "ultimo_partido": f.ultimo_partido.isoformat() if f.ultimo_partido else None}
+                for f in filas
+            ],
+            "carpeta": str(destino),
+        }
+        _escribir_paquete(destino, resumen, textos, resumen["sugerido"], resumen["semana_iso"])
+        return resumen
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
 # Update semanal (T2.4 + T2.5)
 # ---------------------------------------------------------------------------
 LOCK = "weekly.lock"
@@ -1200,6 +1269,15 @@ def main(argv: list[str] | None = None) -> int:
                                  help="Genera el paquete pero no lo manda por Telegram.")
     sin_club_parser.add_argument("--json", action="store_true")
 
+    gta_parser = sub.add_parser(
+        "gta",
+        help="Los 5 grandes con su técnico en GTA V y en GTA VI (bajo demanda).",
+    )
+    gta_parser.add_argument("--salida", type=Path, default=None)
+    gta_parser.add_argument("--sin-envio", action="store_true",
+                            help="Genera el paquete pero no lo manda por Telegram.")
+    gta_parser.add_argument("--json", action="store_true")
+
     preflight_parser = sub.add_parser("preflight", help="Verifica base y Transfermarkt.")
     preflight_parser.add_argument("--json", action="store_true")
 
@@ -1331,6 +1409,39 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 for omitido in resumen["omitidos"]:
                     print(f"nada que generar: {omitido['motivo']}")
+        return 0 if envio.get("ok") or args.sin_envio or not resumen["generados"] else 30
+
+    if args.comando == "gta":
+        try:
+            resumen = render_gta(out_dir=args.salida)
+        except Exception as error:  # noqa: BLE001
+            print(json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False))
+            return 30
+
+        envio = {"ok": True, "omitido": True}
+        if resumen["generados"] and not args.sin_envio:
+            try:
+                import notify as _notify
+
+                envio = _notify.enviar_paquete(resumen["carpeta"])
+            except Exception as error:  # noqa: BLE001 - el paquete ya está generado
+                envio = {"ok": False, "error": str(error)}
+
+        if args.json:
+            telegram = None if envio.get("omitido") else envio.get("ok")
+            print(json.dumps({"ok": True, **resumen, "telegram": telegram},
+                             ensure_ascii=False))
+        else:
+            for formato in resumen["generados"]:
+                print(f"  ✓ {formato['formato']}: {', '.join(formato['archivos'])}")
+            for omitido in resumen["omitidos"]:
+                print(f"  – {omitido['formato']}: {omitido['motivo']}")
+            for tecnico in resumen["tecnicos_hoy"]:
+                print(f"  {tecnico['club']:14} {tecnico['dt']} (último partido {tecnico['ultimo_partido']})")
+            print(f"  carpeta: {resumen['carpeta']}")
+            if resumen["generados"] and not args.sin_envio:
+                print("  telegram: enviado" if envio.get("ok")
+                      else f"  telegram: no se pudo enviar ({envio.get('error')})")
         return 0 if envio.get("ok") or args.sin_envio or not resumen["generados"] else 30
 
     if args.comando == "all":

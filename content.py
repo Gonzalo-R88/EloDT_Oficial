@@ -54,6 +54,30 @@ LIGAS_REVELACION = frozenset({
 })
 MIN_PJ_REVELACION = 30
 
+# Los cinco grandes del fútbol argentino con el técnico que tenía cada uno el 17/09/2013
+# (lanzamiento de GTA V). La base no tiene la liga argentina antes de 2015, así que ese
+# técnico no sale de los partidos: se fija a mano. `tm_id` es el id de Transfermarkt del
+# club, estable entre bases. Sin ELO: en 2013 sólo hay copas internacionales cargadas.
+GTA5_FECHA = date(2013, 9, 17)
+GTA6_FECHA = date(2026, 11, 19)
+GRANDES = (
+    {"club": "Boca", "tm_id": 189, "dt_2013": "Carlos Bianchi"},
+    {"club": "River", "tm_id": 209, "dt_2013": "Ramón Díaz"},
+    {"club": "Independiente", "tm_id": 1234, "dt_2013": "Omar De Felippe"},
+    {"club": "Racing", "tm_id": 1444, "dt_2013": "Reinaldo Merlo"},
+    {"club": "San Lorenzo", "tm_id": 1775, "dt_2013": "Juan Antonio Pizzi"},
+)
+
+
+@dataclass(frozen=True)
+class FilaGrande:
+    """Un grande con su técnico de 2013 y el de hoy."""
+
+    club: str
+    dt_2013: str
+    dt_hoy: str
+    ultimo_partido: Optional[date]
+
 
 @dataclass(frozen=True)
 class EntradaTop:
@@ -247,6 +271,41 @@ def top_por_pais(
     return top_n(
         session, semana_fin=semana_fin, n=n, pais=pais, ruta_cobertura=ruta_cobertura
     )
+
+
+# ---------------------------------------------------------------------------
+# Los grandes, antes y ahora (GTA V y GTA VI)
+# ---------------------------------------------------------------------------
+def tecnicos_grandes(
+    session: Session, grandes: Sequence[dict] = GRANDES
+) -> list[FilaGrande]:
+    """Técnico de 2013 (tabla fija) y técnico de hoy (el del último partido del club).
+
+    Falla si algún club no está en la base o no tiene partidos: una fila a medias no
+    se publica.
+    """
+    vigentes = dt_actual_por_club(session)
+    clubes = {
+        club.transfermarkt_id: club.club_id
+        for club in session.execute(select(Club)).scalars()
+        if club.transfermarkt_id is not None
+    }
+
+    filas: list[FilaGrande] = []
+    for grande in grandes:
+        club_id = clubes.get(grande["tm_id"])
+        actual = vigentes.get(club_id) if club_id is not None else None
+        if actual is None:
+            raise ValueError(f"{grande['club']}: no hay club o partidos en la base.")
+        filas.append(
+            FilaGrande(
+                club=grande["club"],
+                dt_2013=grande["dt_2013"],
+                dt_hoy=_nombre(session, actual["dt_id"]),
+                ultimo_partido=actual["fecha"],
+            )
+        )
+    return filas
 
 
 # ---------------------------------------------------------------------------

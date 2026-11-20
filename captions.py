@@ -99,6 +99,50 @@ def textos_top10(
     return Textos(texto=texto, alt=alt)
 
 
+PARTICULAS = {"de", "del", "da", "di", "van", "von", "la", "las", "los"}
+
+
+def _apellido_de(nombre: str) -> str:
+    """Apellido con su partícula: 'Omar De Felippe' -> 'De Felippe'."""
+    palabras = nombre.split()
+    if not palabras:
+        return ""
+    inicio = len(palabras) - 1
+    while inicio > 1 and palabras[inicio - 1].lower() in PARTICULAS:
+        inicio -= 1
+    return " ".join(palabras[inicio:])
+
+
+def textos_gta(filas: Sequence, fecha_a: str, fecha_b: str) -> Textos:
+    """Texto del comparativo de los cinco grandes entre GTA V y GTA VI.
+
+    Sólo nombres: en 2013 la base no tiene la liga argentina, así que no hay ELO que
+    comparar entre las dos épocas.
+    """
+    if not filas:
+        raise ValueError("No hay filas para generar los textos.")
+
+    lineas = "\n".join(
+        f"{fila.club}: {_apellido_de(fila.dt_2013)} → {_apellido_de(fila.dt_hoy)}"
+        for fila in filas
+    )
+    texto = _recortar(
+        f"🎮 {fecha_a}, sale GTA V. {fecha_b}, sale GTA VI.\n"
+        f"Los 5 grandes y su DT en cada fecha:\n"
+        f"{lineas}\n"
+        f"¿Cuál de los cinco cambió más?"
+    )
+    alt = (
+        f"Los cinco grandes del fútbol argentino con su técnico el {fecha_a}, cuando salió "
+        f"GTA V, y el {fecha_b}, cuando sale GTA VI. "
+        + ". ".join(
+            f"{fila.club}: {fila.dt_2013} y hoy {fila.dt_hoy}" for fila in filas
+        )
+        + "."
+    )
+    return Textos(texto=texto, alt=alt)
+
+
 def textos_sin_club(
     entradas: Sequence,
     fecha_texto: str,
