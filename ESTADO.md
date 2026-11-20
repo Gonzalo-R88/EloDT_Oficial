@@ -44,6 +44,22 @@
 > El ELO es el acumulado de la base (desde 2000), no un rendimiento de los últimos dos
 > años.
 >
+> **Argentina 2000-2014, estudio hecho (2026-11-19):** `docs/ARGENTINA_HISTORICO.md` (T0.11).
+> Transfermarkt confirmado sin esos torneos (la Primera salta de 1938/39 a 2014/15). Fuentes que
+> sirven: football-data.co.uk (2012/13+, 954 partidos para 2012-2014) y RSSSF (`arg01`…`arg2012`,
+> 2000/01-2011/12, partido por partido con fecha). Los técnicos salen del historial de etapas de
+> cada club en Transfermarkt (`/mitarbeiterhistorie/`, probado con Boca; fechas a veces redondeadas
+> a 1/1 y 31/12). Muestra cruzada de Falcioni en Boca: 76 de liga + 16 de copas = 92 contra 96 de
+> Transfermarkt. **Pendiente de decisión del usuario** (hacer / sólo etapa A / no hacer): el
+> recálculo mueve todos los ELO publicados. No se cargó nada a la base.
+>
+> **Los 5 grandes en GTA V y GTA VI (2026-11-19):** post de ocasión con el técnico de Boca,
+> River, Independiente, Racing y San Lorenzo el 17/09/2013 y el actual. `weekly_run.py gta
+> [--sin-envio]`, plantilla `gta.html` con los dos logos. **Sin ELO**: antes de 2015 la base no
+> tiene la liga argentina (sólo copas), así que el ELO de 2013 sale pegado a 1000 y compararlo
+> con el de hoy es engañoso. Los técnicos de 2013 están fijos en `content.GRANDES`. **Pendiente
+> (T0.11):** si se recupera Argentina 2000-2014 se puede rehacer con ELO en las dos columnas.
+>
 > **Entrega por Telegram (2026-11-10):** un post por bloque — imagen apaisada con la
 > leyenda `POST i de N · <nombre> · X + LinkedIn`, y después el texto y el alt en bloque
 > monoespaciado para copiar. **Un solo texto por pieza** (≤280, sirve para X y LinkedIn),
