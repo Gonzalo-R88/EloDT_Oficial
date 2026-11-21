@@ -936,7 +936,7 @@ def _cargar_nuevos(session, store, cierre: date) -> dict:
 
     stats = {"procesados": 0, "duplicados": 0, "sin_dt": 0, "sin_fecha": 0}
     for config in COMPETITIONS.values():
-        if temporada_cerrada(config, cierre):
+        if config.historico or temporada_cerrada(config, cierre):
             continue
         for season in temporadas_en_curso(config, cierre):
             if not store.has_fixtures(config.code, season):
@@ -969,7 +969,7 @@ def _competencias_inactivas(session, cierre: date, dias: int = 14) -> list[str]:
 
     cerradas = {
         codigo for codigo, config in COMPETITIONS.items()
-        if getattr(config, "last_season", None) is not None
+        if getattr(config, "last_season", None) is not None or config.historico
     }
     return [fila[0] for fila in filas if fila[0] and fila[0] not in cerradas]
 
@@ -1045,6 +1045,8 @@ def update(
         cortado_por_tiempo = False
 
         for config in COMPETITIONS.values():
+            if config.historico:
+                continue
             if presupuesto and (time.monotonic() - inicio_scrapeo) / 60 >= presupuesto:
                 cortado_por_tiempo = True
                 logger.warning(

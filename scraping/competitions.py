@@ -40,6 +40,9 @@ class CompetitionConfig:
     # hay que probar varios años (`_scrape_selecciones`). Los amistosos sí siguen la
     # temporada regular julio-junio.
     ediciones_irregulares: bool = True
+    # Competencia de carga única desde fuentes externas (no existe en TM). El scraper
+    # y la actualización semanal la ignoran: `historico.py` la carga una vez.
+    historico: bool = False
 
 
 # Niveles y coeficientes según el documento maestro v1.
@@ -70,6 +73,18 @@ COMPETITIONS: dict[str, CompetitionConfig] = {
         code="ARCA", slug="copa-argentina", name="Copa Argentina",
         country="Argentina", tier="B", coefficient=0.80, kind="copa",
         path="pokalwettbewerb", saison_offset=1,
+    ),
+    # Histórico argentino (carga única desde fuentes externas, no existe en TM)
+    "ARGH": CompetitionConfig(
+        code="ARGH", slug="argentina-historico", name="Primera División (histórico)",
+        country="Argentina", tier="A", coefficient=1.00, kind="liga",
+        saison_offset=1, last_season=2014, historico=True,
+    ),
+    "ARG2H": CompetitionConfig(
+        code="ARG2H", slug="primera-nacional-historico",
+        name="Primera B Nacional (histórico)", country="Argentina", tier="C",
+        coefficient=0.60, kind="liga", saison_offset=1, last_season=2014,
+        historico=True,
     ),
     # Conmebol (competencias puente entre ligas sudamericanas)
     "CLI": CompetitionConfig(

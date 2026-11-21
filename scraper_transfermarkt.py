@@ -61,7 +61,7 @@ def resolve_competitions(args: argparse.Namespace) -> list[CompetitionConfig]:
         codes = [code.strip().upper() for code in args.leagues.split(",") if code.strip()]
         return [get_competition(code) for code in codes]
     if args.all_competitions:
-        return list(COMPETITIONS.values())
+        return [config for config in COMPETITIONS.values() if not config.historico]
     if not args.competition:
         raise SystemExit("Indicá --competition CÓDIGO, --leagues A,B o --all-competitions.")
     return [get_competition(args.competition)]

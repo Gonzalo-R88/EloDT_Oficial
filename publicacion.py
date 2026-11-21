@@ -124,7 +124,9 @@ def codigos_del_mismo_pais(codigo: str) -> list[str]:
     del_pais = {
         otro
         for otro, datos in COMPETITIONS.items()
-        if datos.country == configuracion.country and datos.kind == "liga"
+        if datos.country == configuracion.country
+        and datos.kind == "liga"
+        and not datos.historico
     }
     del_pais.add(codigo)
     return sorted(del_pais)
