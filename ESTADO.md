@@ -1,6 +1,22 @@
 # ESTADO DEL PROYECTO — handoff entre sesiones
 
-Última actualización: 2026-11-19.
+Última actualización: 2026-11-20.
+
+> **Histórico argentino 2012-2014 CARGADO (2026-11-20).** Se hizo la etapa A de T0.11:
+> **1.373 partidos** nuevos (1.412 parseados; 39 sin DT porque Transfermarkt tiene
+> huecos reales de meses en Instituto y Villa San Carlos). Nuevas competencias `ARGH`
+> (Primera 2012/13, 2013/14 y Transición 2014) y `ARG2H` (B Nacional 2013/14), marcadas
+> `historico=True`: no se scrapean, se cargan con `scripts/historico_argentina.py`.
+> La base quedó en **217.047 partidos · 8.033 DTs · 78 competencias**, `validate_elo.py`
+> en verde (masa 8.033.000, 0 duplicados, 0 suma ≠ 0). **281 tests.**
+> Al 17/09/2013 los cinco grandes ya no están pegados a 1.000: Boca 1.004,8 ·
+> River 1.062,1 · Independiente 1.027,8 · Racing 1.045,0 · San Lorenzo 1.062,9 (era
+> 980,8-1.036,5). El Top 10 mundial casi no se movió. `MODELO_VERSION` pasó a
+> **`elo-v3`** y se reconstruyeron **104 snapshots** (176.440 filas): sin eso las
+> flechas del Top 10 comparaban contra datos viejos. Detalle, fuentes y lo que falta
+> en `docs/ARGENTINA_HISTORICO.md` §10.
+> **Pendiente:** etapa B (2000/01 a 2011/12, RSSSF, ~4.560 partidos) sigue sin decidir.
+> Antes de publicar un post conviene decir "desde 2015" para Argentina, o completar B.
 
 > **Marca (2026-11-10):** X **@EloDT_oficial**, correo elodt.oficial@gmail.com.
 > Logo: `assets/brand/perfil.png` (generado con `scripts/logo.py`) y

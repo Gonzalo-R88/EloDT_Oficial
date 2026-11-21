@@ -2,7 +2,7 @@
 
 Ranking ELO de directores técnicos de fútbol. Arrancan todos en 1.000 puntos y los mueven partido a partido, contra el técnico que tenían enfrente.
 
-**215.674 partidos · 8.020 entrenadores · 76 competiciones · 2000 a hoy**
+**217.047 partidos · 8.033 entrenadores · 78 competiciones · desde 2000**
 
 ![Top 10 DTs del mundo](assets/showcase/top10.png)
 
@@ -24,7 +24,7 @@ El proyecto toma partidos de ligas, copas y torneos de selecciones, identifica a
 - **E** es la expectativa según la diferencia de rating, con **45 puntos de ventaja de localía**.
 - **R** es el resultado real: 1, 0,5 o 0.
 
-Cada partido mueve el mismo total de puntos en las dos direcciones, así que **la masa del sistema se conserva**: con 8.020 entrenadores la suma siempre da 8.020.000. Eso se verifica en cada actualización.
+Cada partido mueve el mismo total de puntos en las dos direcciones, así que **la masa del sistema se conserva**: con 8.033 entrenadores la suma siempre da 8.033.000. Eso se verifica en cada actualización.
 
 Los parámetros están en `EloParams` (`elo.py`) y se adoptan sólo si mejoran la predicción medida. Ver [docs/MODELO_ELO.md](docs/MODELO_ELO.md).
 
@@ -32,13 +32,13 @@ Los parámetros están en `EloParams` (`elo.py`) y se adoptan sólo si mejoran l
 
 | | |
 |---|---|
-| Partidos cargados | 215.674 |
-| Entrenadores | 8.020 |
-| Competiciones | 76 (ligas, copas y selecciones) |
-| Ventana histórica | 2000 a la fecha |
+| Partidos cargados | 217.047 |
+| Entrenadores | 8.033 |
+| Competiciones | 78 (ligas, copas y selecciones) |
+| Ventana histórica | 2000 a la fecha (Argentina, desde 2012) |
 | Páginas de partido descargadas | ~277.000 |
 | Entrenadores publicables hoy | 740 |
-| Tests | 256 |
+| Tests | 281 |
 
 ## Qué genera
 
@@ -63,6 +63,7 @@ El modelo son treinta líneas de matemática. Lo demás fue conseguir datos conf
 - **Páginas viejas.** El layout anterior de los reportes no traía la tabla de suplentes, y el parser descartaba partidos con entrenador presente en la página. Corregido: se recuperaron 7.720 partidos de 2012 a 2026.
 - **Atribución de clubes.** Los clubes sudamericanos nacían con país "Conmebol" porque se tomaba el país de la competencia. Se corrige con la liga doméstica donde más juegan.
 - **Cobertura.** Una auditoría compara los fixtures descargados contra los cargados, por competencia y por año, y detecta huecos reales.
+- **El hueco argentino.** Transfermarkt no tiene la liga argentina antes de 2015: pedir una temporada intermedia devuelve la actual. Se reconstruyó 2012-2014 con football-data.co.uk y RSSSF, y el técnico de cada partido se tomó del historial de etapas de cada club. Entraron 1.373 partidos; los 39 que quedaron afuera son huecos reales de la fuente (Instituto no tiene técnico registrado durante cinco meses) y no se inventaron.
 
 Todo esto queda cubierto por una regla simple: **si la validación falla, no se publica nada.** El validador corre en cada actualización y exige cero partidos duplicados, suma cero por partido y la masa de ELO conservada.
 
@@ -138,11 +139,11 @@ python3 -m pytest
 
 Para scraping hace falta además `playwright install chromium`. Se puede desactivar el resolver con `TM_WAF_SOLVER=false`.
 
-Otros comandos: `scripts/audit_data.py` (cobertura y conflictos de fecha), `scripts/backtest_elo.py` y `scripts/tune_elo.py` (modelo), `scripts/publicables.py` (quién entra y por qué no), `scripts/weekly_run.py selecciones` (fecha FIFA), `sin_club` (técnicos libres) y `gta` (comparativo bajo demanda).
+Otros comandos: `scripts/audit_data.py` (cobertura y conflictos de fecha), `scripts/backtest_elo.py` y `scripts/tune_elo.py` (modelo), `scripts/publicables.py` (quién entra y por qué no), `scripts/weekly_run.py selecciones` (fecha FIFA), `sin_club` (técnicos libres) y `gta` (comparativo bajo demanda). El histórico argentino se reconstruye con `scripts/historico_argentina.py {fetch|etapas|build|load|check}`.
 
 ## Tests
 
-256 tests, sin base de datos. Cubren la matemática del ELO (suma cero, conservación de masa, calibración), el parser, la alineación de temporadas, las reglas de publicación, las capas de contenido y las plantillas.
+281 tests, sin base de datos. Cubren la matemática del ELO (suma cero, conservación de masa, calibración), el parser, la alineación de temporadas, las reglas de publicación, las capas de contenido y las plantillas.
 
 ```bash
 python3 -m pytest
@@ -150,7 +151,7 @@ python3 -m pytest
 
 ## Datos
 
-Los partidos se descargan de [Transfermarkt](https://www.transfermarkt.com/). El repositorio no redistribuye la caché: vive en `data/`, que está fuera del control de versiones, y hay que reconstruirla con los comandos de arriba.
+La mayor parte sale de [Transfermarkt](https://www.transfermarkt.com/). La liga argentina anterior a 2015 no existe ahí, así que se completa con [football-data.co.uk](https://www.football-data.co.uk/argentina.php) (2012 a 2014) y [RSSSF](https://www.rsssf.org/tablesa/) (B Nacional 2013/14), con los entrenadores tomados del historial de etapas de cada club. El repositorio no redistribuye la caché: vive en `data/`, fuera del control de versiones, y se reconstruye con los comandos de arriba.
 
 ## Licencia
 
