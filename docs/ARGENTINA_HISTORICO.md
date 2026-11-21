@@ -126,9 +126,71 @@ Después de cada etapa: validación, backtest antes y después, y `recompute` co
 - [ ] ¿Se acepta que el recálculo cambie los ELO ya publicados y que las flechas de la primera semana no sirvan?
 - [ ] ¿Se incluye la Primera B Nacional (etapa C) o se deja afuera?
 
-## 9. Qué quedó hecho en este estudio
+## 10. Etapa A implementada (2026-11-20)
 
-- Confirmado con evidencia que Transfermarkt no tiene los torneos (sección 2).
-- Fuentes relevadas y probadas (sección 3).
-- Fuente de etapas de técnicos probada con Boca (sección 4); eso cubre la parte de exploración de **T0.7** para Argentina, pero **no** reemplaza el estudio completo (`docs/ETAPAS_DTS.md`, parser y los 3 casos de prueba).
-- Muestra cruzada de Falcioni (sección 4).
+Se hizo la etapa A: **Primera 2012/13, 2013/14 y 2014 más la B Nacional 2013/14**.
+
+| Competencia | Temporada | Partidos | Por club |
+|---|---|---|---|
+| `ARGH` | 2012/13 | 380 | 38 |
+| `ARGH` | 2013/14 | 380 | 38 |
+| `ARGH` | 2014 (Transición) | 190 | 19 |
+| `ARG2H` | 2013/14 | 462 | 42 |
+
+**Cargados: 1.373 de 1.412** (97,2 %). Los 39 restantes no tienen entrenador asignable:
+
+- **Instituto**: 17 partidos. Transfermarkt no registra a nadie entre el 30/09/2013 y el 05/03/2014.
+- **Villa San Carlos**: 11 partidos. Su primera etapa en TM arranca el 09/10/2013, con la temporada ya empezada.
+- **San Martín (SJ)**: 6. Hueco de 19-22 días entre etapas (Garnero y Azconzábal).
+- **Independiente**: 4, pero el problema es del rival (Colón, San Martín SJ, Villa San Carlos), no del club.
+- Resto: huecos de 1 a 12 días entre el fin de una etapa y el arranque de la siguiente.
+
+No se cerraron esos huecos a propósito: asignar el DT saliente cuando la fecha de fin está redondeada es una suposición, y la regla del proyecto es no inventar (T0.9). Se pueden recuperar más adelante con otra fuente.
+
+**Cinco partidos quedaron afuera por no ser de liga**, identificados uno por uno para que cada club cierre con 38 (o 19 en 2014, o 42 en la B):
+
+| Fecha | Partido | Motivo |
+|---|---|---|
+| 2013-06-29 | Vélez-Newell's | Copa Campeonato 2012/13 |
+| 2014-05-25 | San Lorenzo-River | Copa Campeonato 2013/14 |
+| 2014-05-24 | Colón-Rafaela | desempate |
+| 2015-01-29 | Boca-Vélez | tercer cruce de la temporada |
+| 2014-06-11 | Independiente-Huracán | playoff de ascenso |
+
+El caso Boca-Vélez engañaba: parecía un partido postergado de liga, pero es el tercer enfrentamiento del año. Sin sacarlo, Boca y Vélez quedaban con 39 partidos.
+
+### Resultado
+
+Antes de la carga, al 17/09/2013 los cinco grandes estaban entre 980,81 y 1.036,46, todos pegados al 1.000 inicial:
+
+| Club | Antes | Después |
+|---|---|---|
+| Boca | 1.036,46 | 1.004,82 |
+| River | 1.019,96 | 1.062,14 |
+| Independiente | 1.009,15 | 1.027,81 |
+| Racing | 986,23 | 1.044,99 |
+| San Lorenzo | 980,81 | 1.062,90 |
+
+San Lorenzo sube 82 puntos porque ganó el Inicial 2013, que es exactamente la señal que faltaba. El Top 10 mundial casi no se movió (Arteta 1.468, Flick 1.461, Kompany 1.419), como preveía el estudio: el ELO se olvida rápido de los partidos viejos.
+
+**Costo real:** una sesión. 45 requests de historial de técnicos, 1.412 partidos parseados, 279 tests.
+
+### Cómo se rehace
+
+```bash
+python3 scripts/historico_argentina.py fetch    # football-data + RSSSF (sin VPN)
+python3 scripts/historico_argentina.py etapas   # ~45 páginas de TM (VPN)
+python3 scripts/historico_argentina.py build    # resuelve DT por partido
+python3 scripts/historico_argentina.py load     # carga + recompute
+python3 scripts/historico_argentina.py check    # invariantes
+```
+
+### Consecuencia en los snapshots
+
+Entró historial nuevo y todos los ELO se movieron, así que `MODELO_VERSION` pasó a **`elo-v3`** y se reconstruyeron 104 snapshots semanales. Sin eso, las flechas del Top 10 comparaban contra datos viejos.
+
+### Lo que queda de T0.11
+
+- **Etapa B** (2000/01 a 2011/12, RSSSF): ~4.560 partidos. Sigue pendiente de decisión. Mejora poco la predicción (0,0002 de Brier según el estudio) pero permite afirmar "desde 2000" sin asterisco.
+- **Etapa C** (B Nacional completa): sólo si hace falta.
+- **Los 39 partidos sin DT**: hace falta otra fuente de etapas.

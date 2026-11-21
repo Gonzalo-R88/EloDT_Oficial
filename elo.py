@@ -22,8 +22,11 @@ from typing import Optional
 HOME_ADVANTAGE: float = 45.0
 ELO_SCALE: float = 400.0
 INITIAL_ELO: float = 1000.0
-# Versión del modelo: subir cuando cambien parámetros que afectan los ratings.
-MODELO_VERSION: str = "elo-v2"
+# Versión del modelo: subir cuando cambien parámetros que afectan los ratings o
+# cuando entre historial nuevo que mueva los ELO (los snapshots son inmutables por
+# versión: sin subirla, las flechas del Top 10 comparan contra datos viejos).
+# elo-v3 (2026-11-20): histórico argentino 2012-2014 (ARGH/ARG2H), 1.412 partidos.
+MODELO_VERSION: str = "elo-v3"
 
 VALID_FACTOR_K = (20, 30, 40)
 VALID_BENCH_IMPACT = (-1, 0, 1)

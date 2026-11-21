@@ -57,6 +57,7 @@ Leyenda: 🔒 = necesita VPN/scraping (pedir confirmación) · 👤 = requiere a
 | [ ] | T0.8 | Scrape de etapas y perfiles | `02-fase0b-historicos.md` | 🔒 | T0.7 |
 | [ ] | T0.9 | Imputación de DTs por etapas | `02-fase0b-historicos.md` | ⚙️ | T0.8 |
 | [x] | T0.11 | Estudio: Argentina 2000-2014 | `02-fase0b-historicos.md` | ⚙️ 👤 | T0.8 |
+| [x] | T0.11a | Etapa A: cargar 2012-2014 + B Nacional 2013/14 | `docs/ARGENTINA_HISTORICO.md` §10 | ⚙️ 🔒 | T0.11 |
 | [x] | T1.1 | Harness de backtest | `03-fase1-modelo.md` | ⚙️ | T0.3 |
 | [x] | T1.2 | `EloParams` retrocompatible | `03-fase1-modelo.md` | ⚙️ | — |
 | [x] | T1.3 | K de calibración e inactividad | `03-fase1-modelo.md` | ⚙️ | T1.2 |

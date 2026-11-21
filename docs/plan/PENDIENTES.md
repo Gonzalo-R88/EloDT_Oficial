@@ -84,15 +84,13 @@ opciones, escribila debajo de la línea para que quede el registro.
     plantel ("rinde por encima de su plantel"). Se hace como experimento y solo se adopta
     si mejora las predicciones. Vos decidís si aparece en las imágenes y cómo.
 
-- [ ] **¿Intentamos recuperar Argentina 2000-2014?** — estudio **T0.11 hecho el 2026-11-19**
-  (`docs/ARGENTINA_HISTORICO.md`); falta tu decisión.
-  - Hay fuentes gratuitas que sirven: football-data.co.uk (2012/13 en adelante, ~950 partidos
-    para la brecha 2012-2014) y RSSSF (2000/01 a 2011/12, ~4.560 partidos), más el historial
-    de técnicos de cada club en Transfermarkt (~50 requests).
-  - Costo real: 1 a 2 sesiones por etapa, y **el recálculo mueve todos los ELO ya publicados**
-    (las flechas de la primera semana no sirven).
-  - Recomendación: hacer, por etapas (A: 2012-2014; B: 2000-2012; C opcional: Primera B).
-  - Decidí: [ ] hacer · [ ] sólo etapa A · [ ] no hacer. ¿Incluir la Primera B Nacional?
+- [x] **¿Intentamos recuperar Argentina 2000-2014?** — **ETAPA A HECHA el 2026-11-20**:
+  1.373 partidos cargados (`ARGH` 2012/13, 2013/14 y Transición 2014; `ARG2H` B Nacional
+  2013/14). 39 quedaron sin DT por huecos de Transfermarkt y no se inventaron. Detalle en
+  `docs/ARGENTINA_HISTORICO.md` §10.
+  - **Falta decidir la etapa B** (2000/01 a 2011/12, RSSSF, ~4.560 partidos). Mejora poco la
+    predicción (0,0002 de Brier según el estudio) pero permite decir "desde 2000" sin asterisco.
+  - Decidí: [ ] hacer etapa B · [ ] no hacer · [ ] incluir también la B Nacional completa (etapa C).
 
 - [ ] **Qué hacer con los 25 partidos donde Transfermarkt asigna el mismo DT a dos equipos el mismo día** (al cerrar **T0.3** quedaron identificados y documentados en `docs/CONFLICTOS_FECHA.md`).
   - Qué pasa: no es un problema de fechas (la fecha está confirmada). Son errores de Transfermarkt: 20 casos del mismo DT en dos clubes de la misma jornada, 3 en ligas distintas, 1 club con dos partidos el mismo día y 1 partido cargado dos veces en distintas competencias.
